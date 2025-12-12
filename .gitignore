@@ -29,3 +29,6 @@ Thumbs.db
 # ===== Logs =====
 *.log
 logs/
+
+# ===== Deployment =====
+.deploy-config
