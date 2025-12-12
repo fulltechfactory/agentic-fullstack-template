@@ -44,6 +44,13 @@ help:
 	@echo "  make test-setup    - Run automated tests for setup commands"
 	@echo "  make help          - Show this help message"
 	@echo ""
+	@echo "Docker commands (dev):"
+	@echo "  make dev-up        - Start development environment"
+	@echo "  make dev-down      - Stop development environment"
+	@echo "  make dev-logs      - Show container logs"
+	@echo "  make dev-ps        - Show container status"
+	@echo "  make dev-clean     - Remove all data and volumes"
+	@echo ""
 	@echo "Non-interactive mode (example):"
 	@echo "  make setup-dev AI_PROVIDER=openai AI_API_KEY=sk-xxx"
 
@@ -569,3 +576,42 @@ setup-deploy:
 # ============================================================
 test-setup:
 	@./scripts/test-setup.sh
+
+# ============================================================
+# DOCKER COMMANDS
+# ============================================================
+.PHONY: dev-up dev-down dev-logs dev-ps dev-clean
+
+dev-up:
+	@if [ ! -f $(DEV_CONFIG) ]; then \
+		echo "[FAIL] $(DEV_CONFIG) not found. Run 'make setup-dev' first."; \
+		exit 1; \
+	fi
+	@echo "[INFO] Starting development environment..."
+	@set -a && . ./$(DEV_CONFIG) && set +a && docker compose up -d
+	@echo "[OK] Development environment started"
+	@echo ""
+	@echo "Services:"
+	@echo "  - PostgreSQL: localhost:5432"
+	@echo "  - Keycloak:   http://localhost:8080"
+
+dev-down:
+	@echo "[INFO] Stopping development environment..."
+	@docker compose down
+	@echo "[OK] Development environment stopped"
+
+dev-logs:
+	@docker compose logs -f
+
+dev-ps:
+	@docker compose ps
+
+dev-clean:
+	@echo "[WARN] This will delete all data (database, volumes)!"
+	@read -p "Are you sure? [y/N]: " confirm; \
+	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
+		docker compose down -v; \
+		echo "[OK] Development environment cleaned"; \
+	else \
+		echo "[INFO] Cancelled"; \
+	fi
