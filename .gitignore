@@ -30,5 +30,7 @@ Thumbs.db
 *.log
 logs/
 
-# ===== Deployment =====
+# ===== Deployment Configs =====
+.dev-config
+.staging-config
 .deploy-config
