@@ -1,4 +1,4 @@
-.PHONY: setup-dev setup-staging setup-deploy help
+.PHONY: setup-dev setup-staging setup-deploy help test-setup
 
 DEV_CONFIG := .dev-config
 STAGING_CONFIG := .staging-config
@@ -9,13 +9,30 @@ AI_PROVIDER ?=
 AI_API_KEY ?=
 AI_URL ?=
 CLOUD_PROVIDER ?=
+
+# PostgreSQL superuser
 POSTGRES_PASSWORD ?=
+
+# Database connection defaults
+DB_APP_HOST ?= postgres
+DB_APP_PORT ?= 5432
+DB_APP_NAME ?= agentic_db
+DB_APP_SCHEMA ?= app
+
+DB_KEYCLOAK_HOST ?= postgres
+DB_KEYCLOAK_PORT ?= 5432
+DB_KEYCLOAK_NAME ?= agentic_db
+DB_KEYCLOAK_SCHEMA ?= keycloak
+
+# Database users
 DB_MIGRATION_USER ?= migration
 DB_MIGRATION_PASSWORD ?=
 DB_APP_USER ?= appuser
 DB_APP_PASSWORD ?=
 DB_KEYCLOAK_USER ?= keycloak
 DB_KEYCLOAK_PASSWORD ?=
+
+# Keycloak admin
 KEYCLOAK_ADMIN ?=
 KEYCLOAK_ADMIN_PASSWORD ?=
 
@@ -29,6 +46,32 @@ help:
 	@echo ""
 	@echo "Non-interactive mode (example):"
 	@echo "  make setup-dev AI_PROVIDER=openai AI_API_KEY=sk-xxx"
+
+# ============================================================
+# Helper function to write database config
+# ============================================================
+define write_db_config
+	echo "" >> $(1); \
+	echo "# Application Database" >> $(1); \
+	echo "DB_APP_HOST=$(2)" >> $(1); \
+	echo "DB_APP_PORT=$(3)" >> $(1); \
+	echo "DB_APP_NAME=$(4)" >> $(1); \
+	echo "DB_APP_SCHEMA=$(5)" >> $(1); \
+	echo "DB_APP_USER=$(6)" >> $(1); \
+	echo "DB_APP_PASSWORD=$(7)" >> $(1); \
+	echo "" >> $(1); \
+	echo "# Migration User" >> $(1); \
+	echo "DB_MIGRATION_USER=$(8)" >> $(1); \
+	echo "DB_MIGRATION_PASSWORD=$(9)" >> $(1); \
+	echo "" >> $(1); \
+	echo "# Keycloak Database" >> $(1); \
+	echo "DB_KEYCLOAK_HOST=$(10)" >> $(1); \
+	echo "DB_KEYCLOAK_PORT=$(11)" >> $(1); \
+	echo "DB_KEYCLOAK_NAME=$(12)" >> $(1); \
+	echo "DB_KEYCLOAK_SCHEMA=$(13)" >> $(1); \
+	echo "DB_KEYCLOAK_USER=$(14)" >> $(1); \
+	echo "DB_KEYCLOAK_PASSWORD=$(15)" >> $(1);
+endef
 
 # ============================================================
 # SETUP DEV - Local Docker, default credentials
@@ -55,7 +98,7 @@ setup-dev:
 			4) ai_provider="mistral"; ai_key_name="MISTRAL_API_KEY";; \
 			5) ai_provider="ollama"; ai_key_name="";; \
 			6) ai_provider="lmstudio"; ai_key_name="";; \
-			*) echo "Invalid choice"; exit 1;; \
+			*) echo "[FAIL] Invalid choice"; exit 1;; \
 		esac; \
 		ai_api_key=""; \
 		ai_url=""; \
@@ -108,18 +151,26 @@ setup-dev:
 		echo "AI_URL=$$ai_url" >> $(DEV_CONFIG); \
 	fi; \
 	echo "" >> $(DEV_CONFIG); \
-	echo "# PostgreSQL" >> $(DEV_CONFIG); \
+	echo "# PostgreSQL Superuser" >> $(DEV_CONFIG); \
 	echo "POSTGRES_PASSWORD=postgres" >> $(DEV_CONFIG); \
+	echo "" >> $(DEV_CONFIG); \
+	echo "# Application Database" >> $(DEV_CONFIG); \
+	echo "DB_APP_HOST=postgres" >> $(DEV_CONFIG); \
+	echo "DB_APP_PORT=5432" >> $(DEV_CONFIG); \
+	echo "DB_APP_NAME=agentic_db" >> $(DEV_CONFIG); \
+	echo "DB_APP_SCHEMA=app" >> $(DEV_CONFIG); \
+	echo "DB_APP_USER=appuser" >> $(DEV_CONFIG); \
+	echo "DB_APP_PASSWORD=appuser" >> $(DEV_CONFIG); \
 	echo "" >> $(DEV_CONFIG); \
 	echo "# Migration User" >> $(DEV_CONFIG); \
 	echo "DB_MIGRATION_USER=migration" >> $(DEV_CONFIG); \
 	echo "DB_MIGRATION_PASSWORD=migration" >> $(DEV_CONFIG); \
 	echo "" >> $(DEV_CONFIG); \
-	echo "# Application User" >> $(DEV_CONFIG); \
-	echo "DB_APP_USER=appuser" >> $(DEV_CONFIG); \
-	echo "DB_APP_PASSWORD=appuser" >> $(DEV_CONFIG); \
-	echo "" >> $(DEV_CONFIG); \
-	echo "# Keycloak Database User" >> $(DEV_CONFIG); \
+	echo "# Keycloak Database" >> $(DEV_CONFIG); \
+	echo "DB_KEYCLOAK_HOST=postgres" >> $(DEV_CONFIG); \
+	echo "DB_KEYCLOAK_PORT=5432" >> $(DEV_CONFIG); \
+	echo "DB_KEYCLOAK_NAME=agentic_db" >> $(DEV_CONFIG); \
+	echo "DB_KEYCLOAK_SCHEMA=keycloak" >> $(DEV_CONFIG); \
 	echo "DB_KEYCLOAK_USER=keycloak" >> $(DEV_CONFIG); \
 	echo "DB_KEYCLOAK_PASSWORD=keycloak" >> $(DEV_CONFIG); \
 	echo "" >> $(DEV_CONFIG); \
@@ -252,18 +303,26 @@ setup-staging:
 		echo "AI_URL=$$ai_url" >> $(STAGING_CONFIG); \
 	fi; \
 	echo "" >> $(STAGING_CONFIG); \
-	echo "# PostgreSQL" >> $(STAGING_CONFIG); \
+	echo "# PostgreSQL Superuser" >> $(STAGING_CONFIG); \
 	echo "POSTGRES_PASSWORD=postgres" >> $(STAGING_CONFIG); \
+	echo "" >> $(STAGING_CONFIG); \
+	echo "# Application Database" >> $(STAGING_CONFIG); \
+	echo "DB_APP_HOST=postgres" >> $(STAGING_CONFIG); \
+	echo "DB_APP_PORT=5432" >> $(STAGING_CONFIG); \
+	echo "DB_APP_NAME=agentic_db" >> $(STAGING_CONFIG); \
+	echo "DB_APP_SCHEMA=app" >> $(STAGING_CONFIG); \
+	echo "DB_APP_USER=appuser" >> $(STAGING_CONFIG); \
+	echo "DB_APP_PASSWORD=appuser" >> $(STAGING_CONFIG); \
 	echo "" >> $(STAGING_CONFIG); \
 	echo "# Migration User" >> $(STAGING_CONFIG); \
 	echo "DB_MIGRATION_USER=migration" >> $(STAGING_CONFIG); \
 	echo "DB_MIGRATION_PASSWORD=migration" >> $(STAGING_CONFIG); \
 	echo "" >> $(STAGING_CONFIG); \
-	echo "# Application User" >> $(STAGING_CONFIG); \
-	echo "DB_APP_USER=appuser" >> $(STAGING_CONFIG); \
-	echo "DB_APP_PASSWORD=appuser" >> $(STAGING_CONFIG); \
-	echo "" >> $(STAGING_CONFIG); \
-	echo "# Keycloak Database User" >> $(STAGING_CONFIG); \
+	echo "# Keycloak Database" >> $(STAGING_CONFIG); \
+	echo "DB_KEYCLOAK_HOST=postgres" >> $(STAGING_CONFIG); \
+	echo "DB_KEYCLOAK_PORT=5432" >> $(STAGING_CONFIG); \
+	echo "DB_KEYCLOAK_NAME=agentic_db" >> $(STAGING_CONFIG); \
+	echo "DB_KEYCLOAK_SCHEMA=keycloak" >> $(STAGING_CONFIG); \
 	echo "DB_KEYCLOAK_USER=keycloak" >> $(STAGING_CONFIG); \
 	echo "DB_KEYCLOAK_PASSWORD=keycloak" >> $(STAGING_CONFIG); \
 	echo "" >> $(STAGING_CONFIG); \
@@ -367,17 +426,33 @@ setup-deploy:
 			echo "-- PostgreSQL Superuser --"; \
 			read -s -p "postgres password: " pg_password; echo ""; \
 			echo ""; \
+			echo "-- Application Database --"; \
+			read -p "app db host [postgres]: " db_app_host; \
+			db_app_host=$${db_app_host:-postgres}; \
+			read -p "app db port [5432]: " db_app_port; \
+			db_app_port=$${db_app_port:-5432}; \
+			read -p "app db name [agentic_db]: " db_app_name; \
+			db_app_name=$${db_app_name:-agentic_db}; \
+			read -p "app db schema [app]: " db_app_schema; \
+			db_app_schema=$${db_app_schema:-app}; \
+			read -p "app username [appuser]: " app_user; \
+			app_user=$${app_user:-appuser}; \
+			read -s -p "app password: " app_password; echo ""; \
+			echo ""; \
 			echo "-- Migration User --"; \
 			read -p "migration username [migration]: " mig_user; \
 			mig_user=$${mig_user:-migration}; \
 			read -s -p "migration password: " mig_password; echo ""; \
 			echo ""; \
-			echo "-- Application User --"; \
-			read -p "app username [appuser]: " app_user; \
-			app_user=$${app_user:-appuser}; \
-			read -s -p "app password: " app_password; echo ""; \
-			echo ""; \
-			echo "-- Keycloak Database User --"; \
+			echo "-- Keycloak Database --"; \
+			read -p "keycloak db host [postgres]: " db_kc_host; \
+			db_kc_host=$${db_kc_host:-postgres}; \
+			read -p "keycloak db port [5432]: " db_kc_port; \
+			db_kc_port=$${db_kc_port:-5432}; \
+			read -p "keycloak db name [agentic_db]: " db_kc_name; \
+			db_kc_name=$${db_kc_name:-agentic_db}; \
+			read -p "keycloak db schema [keycloak]: " db_kc_schema; \
+			db_kc_schema=$${db_kc_schema:-keycloak}; \
 			read -p "keycloak db username [keycloak]: " kc_db_user; \
 			kc_db_user=$${kc_db_user:-keycloak}; \
 			read -s -p "keycloak db password: " kc_db_password; echo ""; \
@@ -388,10 +463,18 @@ setup-deploy:
 			read -s -p "Keycloak admin password: " kc_admin_password; echo ""; \
 		else \
 			pg_password="$(POSTGRES_PASSWORD)"; \
-			mig_user="$(DB_MIGRATION_USER)"; \
-			mig_password="$(DB_MIGRATION_PASSWORD)"; \
+			db_app_host="$(DB_APP_HOST)"; \
+			db_app_port="$(DB_APP_PORT)"; \
+			db_app_name="$(DB_APP_NAME)"; \
+			db_app_schema="$(DB_APP_SCHEMA)"; \
 			app_user="$(DB_APP_USER)"; \
 			app_password="$(DB_APP_PASSWORD)"; \
+			mig_user="$(DB_MIGRATION_USER)"; \
+			mig_password="$(DB_MIGRATION_PASSWORD)"; \
+			db_kc_host="$(DB_KEYCLOAK_HOST)"; \
+			db_kc_port="$(DB_KEYCLOAK_PORT)"; \
+			db_kc_name="$(DB_KEYCLOAK_NAME)"; \
+			db_kc_schema="$(DB_KEYCLOAK_SCHEMA)"; \
 			kc_db_user="$(DB_KEYCLOAK_USER)"; \
 			kc_db_password="$(DB_KEYCLOAK_PASSWORD)"; \
 			kc_admin="$(KEYCLOAK_ADMIN)"; \
@@ -403,10 +486,18 @@ setup-deploy:
 		ai_api_key="$(AI_API_KEY)"; \
 		ai_url="$(AI_URL)"; \
 		pg_password="$(POSTGRES_PASSWORD)"; \
-		mig_user="$(DB_MIGRATION_USER)"; \
-		mig_password="$(DB_MIGRATION_PASSWORD)"; \
+		db_app_host="$(DB_APP_HOST)"; \
+		db_app_port="$(DB_APP_PORT)"; \
+		db_app_name="$(DB_APP_NAME)"; \
+		db_app_schema="$(DB_APP_SCHEMA)"; \
 		app_user="$(DB_APP_USER)"; \
 		app_password="$(DB_APP_PASSWORD)"; \
+		mig_user="$(DB_MIGRATION_USER)"; \
+		mig_password="$(DB_MIGRATION_PASSWORD)"; \
+		db_kc_host="$(DB_KEYCLOAK_HOST)"; \
+		db_kc_port="$(DB_KEYCLOAK_PORT)"; \
+		db_kc_name="$(DB_KEYCLOAK_NAME)"; \
+		db_kc_schema="$(DB_KEYCLOAK_SCHEMA)"; \
 		kc_db_user="$(DB_KEYCLOAK_USER)"; \
 		kc_db_password="$(DB_KEYCLOAK_PASSWORD)"; \
 		kc_admin="$(KEYCLOAK_ADMIN)"; \
@@ -443,18 +534,26 @@ setup-deploy:
 		echo "AI_URL=$$ai_url" >> $(DEPLOY_CONFIG); \
 	fi; \
 	echo "" >> $(DEPLOY_CONFIG); \
-	echo "# PostgreSQL" >> $(DEPLOY_CONFIG); \
+	echo "# PostgreSQL Superuser" >> $(DEPLOY_CONFIG); \
 	echo "POSTGRES_PASSWORD=$$pg_password" >> $(DEPLOY_CONFIG); \
+	echo "" >> $(DEPLOY_CONFIG); \
+	echo "# Application Database" >> $(DEPLOY_CONFIG); \
+	echo "DB_APP_HOST=$$db_app_host" >> $(DEPLOY_CONFIG); \
+	echo "DB_APP_PORT=$$db_app_port" >> $(DEPLOY_CONFIG); \
+	echo "DB_APP_NAME=$$db_app_name" >> $(DEPLOY_CONFIG); \
+	echo "DB_APP_SCHEMA=$$db_app_schema" >> $(DEPLOY_CONFIG); \
+	echo "DB_APP_USER=$$app_user" >> $(DEPLOY_CONFIG); \
+	echo "DB_APP_PASSWORD=$$app_password" >> $(DEPLOY_CONFIG); \
 	echo "" >> $(DEPLOY_CONFIG); \
 	echo "# Migration User" >> $(DEPLOY_CONFIG); \
 	echo "DB_MIGRATION_USER=$$mig_user" >> $(DEPLOY_CONFIG); \
 	echo "DB_MIGRATION_PASSWORD=$$mig_password" >> $(DEPLOY_CONFIG); \
 	echo "" >> $(DEPLOY_CONFIG); \
-	echo "# Application User" >> $(DEPLOY_CONFIG); \
-	echo "DB_APP_USER=$$app_user" >> $(DEPLOY_CONFIG); \
-	echo "DB_APP_PASSWORD=$$app_password" >> $(DEPLOY_CONFIG); \
-	echo "" >> $(DEPLOY_CONFIG); \
-	echo "# Keycloak Database User" >> $(DEPLOY_CONFIG); \
+	echo "# Keycloak Database" >> $(DEPLOY_CONFIG); \
+	echo "DB_KEYCLOAK_HOST=$$db_kc_host" >> $(DEPLOY_CONFIG); \
+	echo "DB_KEYCLOAK_PORT=$$db_kc_port" >> $(DEPLOY_CONFIG); \
+	echo "DB_KEYCLOAK_NAME=$$db_kc_name" >> $(DEPLOY_CONFIG); \
+	echo "DB_KEYCLOAK_SCHEMA=$$db_kc_schema" >> $(DEPLOY_CONFIG); \
 	echo "DB_KEYCLOAK_USER=$$kc_db_user" >> $(DEPLOY_CONFIG); \
 	echo "DB_KEYCLOAK_PASSWORD=$$kc_db_password" >> $(DEPLOY_CONFIG); \
 	echo "" >> $(DEPLOY_CONFIG); \
