@@ -32,7 +32,7 @@ def get_model():
     elif provider == "ollama":
         from agno.models.ollama import Ollama
         base_url = settings.AI_URL or "http://localhost:11434"
-        return Ollama(id="llama3.1:8b", host=base_url)
+        return Ollama(id="mistral:latest", host=base_url)
 
     elif provider == "lmstudio":
         from agno.models.lmstudio import LMStudio
