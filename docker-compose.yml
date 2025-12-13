@@ -1,10 +1,6 @@
 # ==============================================================================
 # Agentic Fullstack Template - Development Environment
 # ==============================================================================
-# Usage:
-#   1. Run: make setup-dev
-#   2. Run: make dev-up
-# ==============================================================================
 
 services:
   # ----------------------------------------------------------------------------
@@ -18,7 +14,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_APP_NAME:-agentic_db}
-      # Variables for init script
       DB_MIGRATION_USER: ${DB_MIGRATION_USER:-migration}
       DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD:-migration}
       DB_APP_USER: ${DB_APP_USER:-appuser}
@@ -44,19 +39,15 @@ services:
     container_name: agentic-keycloak
     restart: unless-stopped
     environment:
-      # Admin credentials (new variables for Keycloak 26)
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-      # Legacy variables (kept for compatibility)
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-      # Database connection
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/${DB_APP_NAME:-agentic_db}?currentSchema=${DB_KEYCLOAK_SCHEMA:-keycloak}
       KC_DB_USERNAME: ${DB_KEYCLOAK_USER:-keycloak}
       KC_DB_PASSWORD: ${DB_KEYCLOAK_PASSWORD:-keycloak}
       KC_DB_SCHEMA: ${DB_KEYCLOAK_SCHEMA:-keycloak}
-      # Development settings
       KC_HTTP_ENABLED: true
       KC_HEALTH_ENABLED: true
       KC_METRICS_ENABLED: false
@@ -74,20 +65,25 @@ services:
       start_period: 60s
 
   # ----------------------------------------------------------------------------
-  # Keycloak Init (runs once to disable SSL for dev)
+  # Keycloak Setup (runs once to configure realm, client, and test user)
   # ----------------------------------------------------------------------------
-  keycloak-init:
+  keycloak-setup:
     image: quay.io/keycloak/keycloak:26.0
-    container_name: agentic-keycloak-init
+    container_name: agentic-keycloak-setup
     environment:
+      KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      REALM_NAME: ${KEYCLOAK_REALM:-agentic}
+      CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-agentic-app}
+      CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-agentic-secret}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     volumes:
-      - ./docker/keycloak/disable-ssl.sh:/opt/disable-ssl.sh:ro
+      - ./docker/keycloak/setup-realm.sh:/opt/setup-realm.sh:ro
     depends_on:
       keycloak:
         condition: service_healthy
-    entrypoint: ["/bin/bash", "/opt/disable-ssl.sh"]
+    entrypoint: ["/bin/bash", "/opt/setup-realm.sh"]
     restart: "no"
 
   # ----------------------------------------------------------------------------

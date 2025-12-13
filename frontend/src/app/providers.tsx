@@ -1,6 +1,7 @@
 "use client";
 
 import { CopilotKit } from "@copilotkit/react-core";
+import { SessionProvider } from "next-auth/react";
 import { ReactNode } from "react";
 
 interface ProvidersProps {
@@ -9,11 +10,10 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <CopilotKit
-      runtimeUrl="/api/copilotkit"
-      agent="agent"
-    >
-      {children}
-    </CopilotKit>
+    <SessionProvider>
+      <CopilotKit runtimeUrl="/api/copilotkit" agent="agent">
+        {children}
+      </CopilotKit>
+    </SessionProvider>
   );
 }
