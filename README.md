@@ -9,7 +9,7 @@ A fullstack template for building AI agentic applications with CopilotKit and Ag
 | Frontend | Next.js 16, React 19, TypeScript, CopilotKit |
 | Backend | Python 3.11, Agno, FastAPI |
 | Protocol | AG-UI (Agent-User Interaction) |
-| Auth | Keycloak |
+| Auth | Keycloak + NextAuth.js |
 | Database | PostgreSQL 16 |
 | Infrastructure | Docker, OpenTofu |
 
@@ -17,7 +17,6 @@ A fullstack template for building AI agentic applications with CopilotKit and Ag
 
 - **Node.js** 18+ (recommended: 20+)
 - **pnpm** 9+ (install with `npm install -g pnpm`)
-- **Python** 3.10+
 - **Docker** and Docker Compose
 - **Git**
 
@@ -52,14 +51,23 @@ This starts:
 - Keycloak on `http://localhost:8080`
 - Backend API on `http://localhost:8000`
 
+Wait ~1 minute for Keycloak to initialize the realm and test user.
+
 ### 4. Start the frontend
 ```bash
-cd frontend
-pnpm install
-pnpm dev
+make frontend
 ```
 
-Open `http://localhost:3000` in your browser.
+This will:
+- Generate `frontend/.env.local` if needed
+- Install dependencies if needed
+- Start the Next.js development server
+
+### 5. Access the application
+
+Open `http://localhost:3000` and sign in with:
+- **Username:** `testuser`
+- **Password:** `testuser`
 
 ## Available Commands
 
@@ -76,48 +84,53 @@ Open `http://localhost:3000` in your browser.
 
 | Command | Description |
 |---------|-------------|
-| `make dev-up` | Start development environment |
-| `make dev-down` | Stop development environment |
+| `make dev-up` | Start backend services (PostgreSQL, Keycloak, Backend) |
+| `make dev-down` | Stop all services |
 | `make dev-logs` | Show container logs |
 | `make dev-ps` | Show container status |
 | `make dev-clean` | Remove all data and volumes |
 
 ### Frontend Commands
-```bash
-cd frontend
-pnpm dev      # Start development server
-pnpm build    # Build for production
-pnpm start    # Start production server
-pnpm lint     # Run linter
-```
+
+| Command | Description |
+|---------|-------------|
+| `make frontend` | Start frontend development server |
+| `make frontend-install` | Install frontend dependencies |
+| `make frontend-env` | Generate frontend/.env.local |
 
 ## Project Structure
 ```
 agentic-fullstack-template/
-├── frontend/               # Next.js + CopilotKit
+├── frontend/                   # Next.js + CopilotKit
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── api/copilotkit/  # AG-UI route
+│   │   │   ├── api/
+│   │   │   │   ├── auth/       # NextAuth.js routes
+│   │   │   │   └── copilotkit/ # AG-UI endpoint
 │   │   │   ├── layout.tsx
 │   │   │   ├── page.tsx
 │   │   │   └── providers.tsx
-│   │   └── ...
+│   │   ├── auth.ts             # NextAuth configuration
+│   │   └── types/              # TypeScript definitions
+│   ├── Dockerfile
 │   └── package.json
-├── backend/                # Python + Agno + FastAPI
+├── backend/                    # Python + Agno + FastAPI
 │   ├── app/
-│   │   ├── agents/         # Agent definitions
-│   │   ├── config/         # Settings and model factory
-│   │   └── main.py         # FastAPI application
+│   │   ├── agents/             # Agent definitions
+│   │   ├── config/             # Settings and model factory
+│   │   └── main.py             # FastAPI application
 │   ├── Dockerfile
 │   └── requirements.txt
-├── docker/                 # Docker initialization scripts
+├── docker/                     # Docker initialization scripts
 │   ├── keycloak/
+│   │   └── setup-realm.sh      # Auto-configure realm, client, user
 │   └── postgres/
-├── infra/                  # OpenTofu configurations
+│       └── init-db.sh          # Initialize schemas and users
+├── infra/                      # OpenTofu configurations
 │   ├── aws/
 │   ├── gcp/
 │   └── azure/
-├── scripts/                # Utility scripts
+├── scripts/                    # Utility scripts
 ├── docker-compose.yml
 ├── Makefile
 └── README.md
@@ -136,22 +149,66 @@ The template supports multiple AI providers:
 | Ollama | Local | `AI_PROVIDER=ollama AI_URL=http://host.docker.internal:11434` |
 | LM Studio | Local | `AI_PROVIDER=lmstudio AI_URL=http://host.docker.internal:1234` |
 
-## Environments
+## Authentication
 
-| Environment | Database | Keycloak | Credentials |
-|-------------|----------|----------|-------------|
-| dev | Docker (local) | Docker (local) | Default |
-| staging | Docker (cloud VM) | Docker (cloud VM) | Default |
-| prod | Docker (cloud VM) | Docker (cloud VM) | Manual |
+The template uses Keycloak for authentication with NextAuth.js integration.
 
-## Default Credentials (dev/staging)
+### Default Configuration (dev/staging)
 
-| Service | Username | Password |
-|---------|----------|----------|
-| Keycloak Admin | admin | admin |
-| Keycloak Test User | testuser | testuser |
-| PostgreSQL | postgres | postgres |
-| App Database User | appuser | appuser |
+| Setting | Value |
+|---------|-------|
+| Realm | `agentic` |
+| Client ID | `agentic-app` |
+| Client Secret | `agentic-secret` |
+| Test User | `testuser` / `testuser` |
+
+### Keycloak Admin Console
+
+Access Keycloak admin at `http://localhost:8080` with:
+- **Username:** `admin`
+- **Password:** `admin`
+
+## Database
+
+### Default Credentials (dev/staging)
+
+| User | Password | Purpose |
+|------|----------|---------|
+| postgres | postgres | Superuser (never used in app) |
+| migration | migration | Schema migrations (DDL) |
+| appuser | appuser | Application runtime (DML) |
+| keycloak | keycloak | Keycloak database access |
+
+### Schema Architecture
+
+The database uses separate schemas for isolation:
+- `app` - Application data
+- `keycloak` - Authentication data
+
+## Troubleshooting
+
+### "Sign in with Keycloak" shows error
+
+Clear your browser cookies for `localhost:3000` and try again.
+
+### Keycloak not ready
+
+Wait ~1 minute after `make dev-up` for Keycloak to fully initialize.
+
+### Container fails to start
+```bash
+make dev-down
+docker system prune -f
+make dev-up
+```
+
+### Check service logs
+```bash
+docker logs agentic-postgres
+docker logs agentic-keycloak
+docker logs agentic-backend
+docker logs agentic-keycloak-setup
+```
 
 ## License
 
