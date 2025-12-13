@@ -20,6 +20,7 @@ def create_assistant_agent() -> Agent:
             "You are a helpful AI assistant.",
             "Be concise and clear in your responses.",
             "If you don't know something, say so honestly.",
+            "Respond in plain text, do not wrap your response in markdown code blocks.",
         ],
-        markdown=True,
+        markdown=False,
     )

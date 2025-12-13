@@ -13,11 +13,12 @@ export default function Home() {
         <p className="text-center text-gray-600 mb-8">
           AI-powered application built with CopilotKit and Agno
         </p>
-        <div className="h-[600px] border rounded-lg shadow-lg overflow-hidden bg-white">
+        <div className="h-[600px] border rounded-lg shadow-lg bg-white overflow-hidden">
           <CopilotChat
+            className="h-full"
             labels={{
               title: "AI Assistant",
-              initial: "Hello! I'm your AI assistant. How can I help you today?",
+              initial: "Hello! How can I help you today?",
             }}
           />
         </div>
