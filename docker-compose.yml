@@ -90,6 +90,43 @@ services:
     entrypoint: ["/bin/bash", "/opt/disable-ssl.sh"]
     restart: "no"
 
+  # ----------------------------------------------------------------------------
+  # Backend (Agno + FastAPI)
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: agentic-backend
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_URL: ${AI_URL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      DB_APP_HOST: postgres
+      DB_APP_PORT: 5432
+      DB_APP_NAME: ${DB_APP_NAME:-agentic_db}
+      DB_APP_SCHEMA: ${DB_APP_SCHEMA:-app}
+      DB_APP_USER: ${DB_APP_USER:-appuser}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:-appuser}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 volumes:
   postgres_data:
     name: agentic-postgres-data
