@@ -595,6 +595,9 @@ dev-up:
 	@echo "Services:"
 	@echo "  - PostgreSQL: localhost:5432"
 	@echo "  - Keycloak:   http://localhost:8080"
+	@echo "  - Backend:    http://localhost:8000"
+	@echo ""
+	@echo "To start the frontend, run: make frontend"
 
 dev-down:
 	@echo "[INFO] Stopping development environment..."
@@ -636,3 +639,18 @@ frontend-env:
 	@echo "KEYCLOAK_CLIENT_SECRET=agentic-secret" >> frontend/.env.local
 	@echo "KEYCLOAK_ISSUER=http://localhost:8080/realms/agentic" >> frontend/.env.local
 	@echo "[OK] Frontend env saved to frontend/.env.local"
+
+# ============================================================
+# FRONTEND COMMANDS
+# ============================================================
+.PHONY: frontend frontend-install
+
+frontend-install:
+	@echo "[INFO] Installing frontend dependencies..."
+	@cd frontend && pnpm install
+	@echo "[OK] Frontend dependencies installed"
+
+frontend: frontend-env
+	@if [ ! -d frontend/node_modules ]; then $(MAKE) frontend-install; fi
+	@echo "[INFO] Starting frontend..."
+	@cd frontend && pnpm dev
