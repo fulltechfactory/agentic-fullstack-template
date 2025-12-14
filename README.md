@@ -2,6 +2,14 @@
 
 A fullstack template for building AI agentic applications with CopilotKit and Agno.
 
+## Features
+
+- **Multi-provider AI**: OpenAI, Anthropic, Google Gemini, Mistral, Ollama, LM Studio
+- **Session Memory**: Conversation history persisted in PostgreSQL
+- **Authentication**: Keycloak + NextAuth.js with secure OAuth2/OIDC
+- **AG-UI Protocol**: Real-time streaming communication between frontend and backend
+- **Multi-cloud ready**: Infrastructure as Code for AWS, GCP, Azure (OpenTofu)
+
 ## Stack
 
 | Layer | Technology |
@@ -68,6 +76,25 @@ This will:
 Open `http://localhost:3000` and sign in with:
 - **Username:** `testuser`
 - **Password:** `testuser`
+
+## Session Memory
+
+The agent remembers conversation history across page refreshes and server restarts.
+
+### How it works
+
+1. User authenticates via Keycloak → receives a unique `user_id`
+2. Frontend passes `user_id` as `threadId` to CopilotKit
+3. Backend (Agno) stores conversation history in PostgreSQL
+4. On each request, Agno loads the session history from the database
+
+### Database tables (auto-created by Agno)
+
+| Table | Purpose |
+|-------|---------|
+| `app.agent_sessions` | Session data and conversation runs |
+| `app.agno_memories` | User memories (future) |
+| `app.agno_knowledge` | Knowledge base (future) |
 
 ## Available Commands
 
@@ -176,14 +203,24 @@ Access Keycloak admin at `http://localhost:8080` with:
 |------|----------|---------|
 | postgres | postgres | Superuser (never used in app) |
 | migration | migration | Schema migrations (DDL) |
-| appuser | appuser | Application runtime (DML) |
+| appuser | appuser | Application runtime (DML + DDL in dev) |
 | keycloak | keycloak | Keycloak database access |
 
 ### Schema Architecture
 
 The database uses separate schemas for isolation:
-- `app` - Application data
+- `app` - Application data (sessions, memories, knowledge)
 - `keycloak` - Authentication data
+
+## Roadmap
+
+- [x] Multi-provider AI support
+- [x] Authentication (Keycloak + NextAuth.js)
+- [x] Session Memory (PostgreSQL)
+- [ ] RAG (Retrieval-Augmented Generation with PgVector)
+- [ ] User Memory (persistent user preferences)
+- [ ] Infrastructure as Code (OpenTofu for AWS/GCP/Azure)
+- [ ] Test suite (frontend, backend, infrastructure)
 
 ## Troubleshooting
 
@@ -208,6 +245,12 @@ docker logs agentic-postgres
 docker logs agentic-keycloak
 docker logs agentic-backend
 docker logs agentic-keycloak-setup
+```
+
+### Reset all data
+```bash
+make dev-clean
+make dev-up
 ```
 
 ## License
