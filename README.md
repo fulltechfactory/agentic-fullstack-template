@@ -7,6 +7,8 @@ A fullstack template for building AI agentic applications with CopilotKit and Ag
 - **Multi-provider AI**: OpenAI, Anthropic, Google Gemini, Mistral, Ollama, LM Studio
 - **Session Memory**: Conversation history persisted in PostgreSQL
 - **RAG (Retrieval-Augmented Generation)**: Knowledge base with PgVector embeddings
+- **Role-based Access Control**: User, RAG Supervisor, Admin roles via Keycloak
+- **Modern UI**: shadcn/ui components with dark/light theme support
 - **Authentication**: Keycloak + NextAuth.js with secure OAuth2/OIDC
 - **AG-UI Protocol**: Real-time streaming communication between frontend and backend
 - **Multi-cloud ready**: Infrastructure as Code for AWS, GCP, Azure (OpenTofu)
@@ -15,7 +17,7 @@ A fullstack template for building AI agentic applications with CopilotKit and Ag
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | Next.js 16, React 19, TypeScript, CopilotKit |
+| Frontend | Next.js 15, React 19, TypeScript, CopilotKit, shadcn/ui |
 | Backend | Python 3.11, Agno, FastAPI |
 | Protocol | AG-UI (Agent-User Interaction) |
 | Auth | Keycloak + NextAuth.js |
@@ -60,23 +62,34 @@ This starts:
 - Keycloak on `http://localhost:8080`
 - Backend API on `http://localhost:8000`
 
-Wait ~1 minute for Keycloak to initialize the realm and test user.
+Wait ~1 minute for Keycloak to initialize the realm and users.
 
 ### 4. Start the frontend
 ```bash
 make frontend
 ```
 
-This will:
-- Generate `frontend/.env.local` if needed
-- Install dependencies if needed
-- Start the Next.js development server
-
 ### 5. Access the application
 
-Open `http://localhost:3000` and sign in with:
-- **Username:** `testuser`
-- **Password:** `testuser`
+Open `http://localhost:3000` and sign in with one of the test users.
+
+## User Roles
+
+The application implements role-based access control with three user levels:
+
+| User | Password | Roles | Access |
+|------|----------|-------|--------|
+| `testuser` | `testuser` | USER | Chat only |
+| `ragmanager` | `ragmanager` | USER, RAG_SUPERVISOR | Chat + Knowledge Base Management |
+| `adminuser` | `adminuser` | USER, ADMIN | Full access (Chat + Knowledge Base + Admin) |
+
+### Role Permissions
+
+| Feature | USER | RAG_SUPERVISOR | ADMIN |
+|---------|------|----------------|-------|
+| Chat with AI | ✅ | ✅ | ✅ |
+| Knowledge Base Management | ❌ | ✅ | ✅ |
+| Administration | ❌ | ❌ | ✅ |
 
 ## Session Memory
 
@@ -95,7 +108,7 @@ The agent can search a knowledge base to answer questions with relevant context.
 
 ### How it works
 
-1. Documents are added to the knowledge base via API
+1. RAG Supervisors add documents via the Knowledge Base UI
 2. Content is chunked and embedded using OpenAI `text-embedding-3-small`
 3. Embeddings are stored in PostgreSQL with PgVector
 4. On each query, relevant documents are retrieved and added to context
@@ -112,14 +125,23 @@ curl -X POST http://localhost:8000/api/knowledge/add \
 curl -X POST http://localhost:8000/api/knowledge/search \
   -H "Content-Type: application/json" \
   -d '{"query": "Your search query", "limit": 5}'
-
-# Get stats
-curl http://localhost:8000/api/knowledge/stats
 ```
 
 ### Requirements
 
 RAG requires OpenAI API key for embeddings (even when using other providers for chat).
+
+## UI Features
+
+### Theme Support
+
+The application supports light, dark, and system themes. Toggle via the sun/moon icon in the sidebar footer.
+
+### Responsive Sidebar
+
+- Collapsible sidebar with icon-only mode
+- Role-based navigation items
+- User profile with sign-out option
 
 ## Database
 
@@ -140,12 +162,6 @@ RAG requires OpenAI API key for embeddings (even when using other providers for 
 | migration | migration | Schema migrations (DDL) |
 | appuser | appuser | Application runtime (DML + DDL in dev) |
 | keycloak | keycloak | Keycloak database access |
-
-### Schema Architecture
-
-The database uses separate schemas for isolation:
-- `app` - Application data (sessions, memories, knowledge)
-- `keycloak` - Authentication data
 
 ## Available Commands
 
@@ -177,8 +193,6 @@ The database uses separate schemas for isolation:
 
 ## AI Providers
 
-The template supports multiple AI providers:
-
 | Provider | Type | Configuration |
 |----------|------|---------------|
 | OpenAI | Cloud | `AI_PROVIDER=openai AI_API_KEY=sk-...` |
@@ -188,20 +202,7 @@ The template supports multiple AI providers:
 | Ollama | Local | `AI_PROVIDER=ollama AI_URL=http://host.docker.internal:11434` |
 | LM Studio | Local | `AI_PROVIDER=lmstudio AI_URL=http://host.docker.internal:1234` |
 
-## Authentication
-
-The template uses Keycloak for authentication with NextAuth.js integration.
-
-### Default Configuration (dev/staging)
-
-| Setting | Value |
-|---------|-------|
-| Realm | `agentic` |
-| Client ID | `agentic-app` |
-| Client Secret | `agentic-secret` |
-| Test User | `testuser` / `testuser` |
-
-### Keycloak Admin Console
+## Keycloak Admin Console
 
 Access Keycloak admin at `http://localhost:8080` with:
 - **Username:** `admin`
@@ -213,7 +214,10 @@ Access Keycloak admin at `http://localhost:8080` with:
 - [x] Authentication (Keycloak + NextAuth.js)
 - [x] Session Memory (PostgreSQL)
 - [x] RAG (Retrieval-Augmented Generation with PgVector)
-- [ ] RAG Manager UI (role-based access for knowledge management)
+- [x] Role-based Access Control (USER, RAG_SUPERVISOR, ADMIN)
+- [x] Modern UI with shadcn/ui
+- [x] Dark/Light theme support
+- [ ] Admin dashboard
 - [ ] User Memory (persistent user preferences)
 - [ ] Infrastructure as Code (OpenTofu for AWS/GCP/Azure)
 - [ ] Test suite (frontend, backend, infrastructure)

@@ -1,99 +1,142 @@
 #!/bin/bash
-# ==============================================================================
-# Keycloak Realm Setup Script
-# Uses kcadm.sh for reliable configuration
-# ==============================================================================
 
-set -e
+# Use correct environment variable names from docker-compose
+KEYCLOAK_REALM=${REALM_NAME:-agentic}
+KEYCLOAK_CLIENT_ID=${CLIENT_ID:-agentic-app}
+KEYCLOAK_CLIENT_SECRET=${CLIENT_SECRET:-agentic-secret}
 
-KEYCLOAK_URL="${KEYCLOAK_URL:-http://localhost:8080}"
-KEYCLOAK_ADMIN="${KEYCLOAK_ADMIN:-admin}"
-KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-admin}"
-REALM_NAME="${REALM_NAME:-agentic}"
-CLIENT_ID="${CLIENT_ID:-agentic-app}"
-CLIENT_SECRET="${CLIENT_SECRET:-agentic-secret}"
-FRONTEND_URL="${FRONTEND_URL:-http://localhost:3000}"
-
-KCADM="/opt/keycloak/bin/kcadm.sh"
-
-echo "=========================================="
-echo "Keycloak Realm Setup"
-echo "=========================================="
-
-# Wait for Keycloak to be ready by trying to authenticate
-echo "[1/6] Waiting for Keycloak to be ready..."
-until $KCADM config credentials --server "$KEYCLOAK_URL" --realm master --user "$KEYCLOAK_ADMIN" --password "$KEYCLOAK_ADMIN_PASSWORD" 2>/dev/null; do
-    echo "  Keycloak not ready, waiting 5s..."
+# Wait for Keycloak to be ready (using kcadm instead of curl)
+echo "Waiting for Keycloak to be ready..."
+until /opt/keycloak/bin/kcadm.sh config credentials \
+    --server http://keycloak:8080 \
+    --realm master \
+    --user ${KEYCLOAK_ADMIN} \
+    --password ${KEYCLOAK_ADMIN_PASSWORD} 2>/dev/null; do
+    echo "  Keycloak not ready yet, retrying in 5s..."
     sleep 5
 done
-echo "  OK"
+echo "Keycloak is ready!"
 
-# Already authenticated in step 1
-echo "[2/6] Authentication verified"
-echo "  OK"
+# Check if realm exists
+REALM_EXISTS=$(/opt/keycloak/bin/kcadm.sh get realms/${KEYCLOAK_REALM} 2>/dev/null)
 
-# Create realm if not exists
-echo "[3/6] Checking realm '$REALM_NAME'..."
-if $KCADM get realms/$REALM_NAME > /dev/null 2>&1; then
-    echo "  Realm exists, updating SSL settings..."
-    $KCADM update realms/$REALM_NAME -s sslRequired=none
+if [ -z "$REALM_EXISTS" ]; then
+    echo "Creating realm ${KEYCLOAK_REALM}..."
+    /opt/keycloak/bin/kcadm.sh create realms \
+        -s realm=${KEYCLOAK_REALM} \
+        -s enabled=true \
+        -s displayName="Agentic Application"
 else
-    echo "  Creating realm..."
-    $KCADM create realms -s realm="$REALM_NAME" -s enabled=true -s sslRequired=none
+    echo "Realm ${KEYCLOAK_REALM} already exists"
 fi
-echo "  OK"
 
-# Create client if not exists
-echo "[4/6] Checking client '$CLIENT_ID'..."
-EXISTING_CLIENT=$($KCADM get clients -r "$REALM_NAME" -q clientId="$CLIENT_ID" --fields id 2>/dev/null | grep -o '"id" *: *"[^"]*"' | head -1 | cut -d'"' -f4)
+# Get or create client
+echo "Setting up client ${KEYCLOAK_CLIENT_ID}..."
+CLIENT_UUID=$(/opt/keycloak/bin/kcadm.sh get clients -r ${KEYCLOAK_REALM} -q clientId=${KEYCLOAK_CLIENT_ID} --fields id | grep -o '"id" : "[^"]*"' | cut -d'"' -f4)
 
-if [ -n "$EXISTING_CLIENT" ]; then
-    echo "  Client exists, skipping"
-else
-    echo "  Creating client..."
-    $KCADM create clients -r "$REALM_NAME" \
-        -s clientId="$CLIENT_ID" \
-        -s name="Agentic App" \
+if [ -z "$CLIENT_UUID" ]; then
+    /opt/keycloak/bin/kcadm.sh create clients -r ${KEYCLOAK_REALM} \
+        -s clientId=${KEYCLOAK_CLIENT_ID} \
         -s enabled=true \
         -s publicClient=false \
-        -s secret="$CLIENT_SECRET" \
-        -s 'redirectUris=["'"$FRONTEND_URL"'/*"]' \
-        -s 'webOrigins=["'"$FRONTEND_URL"'"]' \
-        -s standardFlowEnabled=true \
+        -s secret=${KEYCLOAK_CLIENT_SECRET} \
+        -s "redirectUris=[\"http://localhost:3000/*\", \"http://127.0.0.1:3000/*\"]" \
+        -s "webOrigins=[\"http://localhost:3000\", \"http://127.0.0.1:3000\"]" \
         -s directAccessGrantsEnabled=true \
-        -s protocol=openid-connect
-fi
-echo "  OK"
-
-# Create test user if not exists
-echo "[5/6] Checking test user..."
-EXISTING_USER=$($KCADM get users -r "$REALM_NAME" -q username=testuser --fields id 2>/dev/null | grep -o '"id" *: *"[^"]*"' | head -1 | cut -d'"' -f4)
-
-if [ -n "$EXISTING_USER" ]; then
-    echo "  User exists, skipping"
-else
-    echo "  Creating user..."
-    $KCADM create users -r "$REALM_NAME" \
-        -s username=testuser \
-        -s email=testuser@example.com \
-        -s firstName=Test \
-        -s lastName=User \
-        -s enabled=true \
-        -s emailVerified=true
+        -s standardFlowEnabled=true
     
-    # Set password
-    $KCADM set-password -r "$REALM_NAME" --username testuser --new-password testuser
+    CLIENT_UUID=$(/opt/keycloak/bin/kcadm.sh get clients -r ${KEYCLOAK_REALM} -q clientId=${KEYCLOAK_CLIENT_ID} --fields id | grep -o '"id" : "[^"]*"' | cut -d'"' -f4)
+    echo "Client created with UUID: $CLIENT_UUID"
+else
+    echo "Client ${KEYCLOAK_CLIENT_ID} already exists with UUID: $CLIENT_UUID"
 fi
-echo "  OK"
 
-# Disable SSL for master realm
-echo "[6/6] Configuring master realm..."
-$KCADM update realms/master -s sslRequired=none
-echo "  OK"
+# Create client roles
+echo "Creating client roles..."
+for ROLE in "RAG_SUPERVISOR" "ADMIN" "USER"; do
+    ROLE_EXISTS=$(/opt/keycloak/bin/kcadm.sh get clients/$CLIENT_UUID/roles -r ${KEYCLOAK_REALM} 2>/dev/null | grep "\"name\" : \"$ROLE\"")
+    if [ -z "$ROLE_EXISTS" ]; then
+        /opt/keycloak/bin/kcadm.sh create clients/$CLIENT_UUID/roles -r ${KEYCLOAK_REALM} \
+            -s name=$ROLE \
+            -s description="$ROLE role"
+        echo "  Role $ROLE created"
+    else
+        echo "  Role $ROLE already exists"
+    fi
+done
 
-echo "=========================================="
-echo "Setup complete!"
-echo "  Realm: $REALM_NAME"
-echo "  Client: $CLIENT_ID / $CLIENT_SECRET"
-echo "  User: testuser / testuser"
-echo "=========================================="
+# Configure client to include roles in token
+echo "Configuring client mappers for roles..."
+MAPPER_EXISTS=$(/opt/keycloak/bin/kcadm.sh get clients/$CLIENT_UUID/protocol-mappers/models -r ${KEYCLOAK_REALM} 2>/dev/null | grep '"name" : "client roles"')
+if [ -z "$MAPPER_EXISTS" ]; then
+    /opt/keycloak/bin/kcadm.sh create clients/$CLIENT_UUID/protocol-mappers/models -r ${KEYCLOAK_REALM} \
+        -s name="client roles" \
+        -s protocol=openid-connect \
+        -s protocolMapper=oidc-usermodel-client-role-mapper \
+        -s 'config."claim.name"=resource_access.${client_id}.roles' \
+        -s 'config."jsonType.label"=String' \
+        -s 'config."multivalued"=true' \
+        -s 'config."usermodel.clientRoleMapping.clientId"='${KEYCLOAK_CLIENT_ID} \
+        -s 'config."id.token.claim"=true' \
+        -s 'config."access.token.claim"=true' \
+        -s 'config."userinfo.token.claim"=true'
+    echo "  Client roles mapper created"
+else
+    echo "  Client roles mapper already exists"
+fi
+
+# Function to create user with roles
+create_user() {
+    local USERNAME=$1
+    local PASSWORD=$2
+    local EMAIL=$3
+    local FIRSTNAME=$4
+    local LASTNAME=$5
+    shift 5
+    local ROLES=("$@")
+    
+    echo "Setting up user ${USERNAME}..."
+    USER_EXISTS=$(/opt/keycloak/bin/kcadm.sh get users -r ${KEYCLOAK_REALM} -q username=${USERNAME} --fields id | grep '"id"')
+    
+    if [ -z "$USER_EXISTS" ]; then
+        /opt/keycloak/bin/kcadm.sh create users -r ${KEYCLOAK_REALM} \
+            -s username=${USERNAME} \
+            -s email=${EMAIL} \
+            -s emailVerified=true \
+            -s enabled=true \
+            -s firstName=${FIRSTNAME} \
+            -s lastName=${LASTNAME}
+        
+        /opt/keycloak/bin/kcadm.sh set-password -r ${KEYCLOAK_REALM} \
+            --username ${USERNAME} \
+            --new-password ${PASSWORD}
+        
+        echo "  User ${USERNAME} created"
+    else
+        echo "  User ${USERNAME} already exists"
+    fi
+    
+    # Assign roles
+    for ROLE in "${ROLES[@]}"; do
+        /opt/keycloak/bin/kcadm.sh add-roles -r ${KEYCLOAK_REALM} \
+            --uusername ${USERNAME} \
+            --cclientid ${KEYCLOAK_CLIENT_ID} \
+            --rolename ${ROLE} 2>/dev/null && echo "  Role ${ROLE} assigned to ${USERNAME}" || echo "  Role ${ROLE} already assigned to ${USERNAME}"
+    done
+}
+
+# Create users
+create_user "testuser" "testuser" "testuser@example.com" "Test" "User" "USER"
+create_user "ragmanager" "ragmanager" "ragmanager@example.com" "RAG" "Manager" "USER" "RAG_SUPERVISOR"
+create_user "adminuser" "adminuser" "adminuser@example.com" "Admin" "User" "USER" "ADMIN"
+
+echo ""
+echo "========================================"
+echo "Keycloak setup completed!"
+echo "========================================"
+echo ""
+echo "Users available:"
+echo "  - testuser / testuser (USER role)"
+echo "  - ragmanager / ragmanager (USER + RAG_SUPERVISOR roles)"
+echo "  - adminuser / adminuser (USER + ADMIN roles)"
+echo ""
