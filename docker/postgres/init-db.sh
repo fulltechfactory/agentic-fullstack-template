@@ -3,8 +3,11 @@ set -e
 
 echo "=== PostgreSQL Initialization ==="
 
-# Create schemas
+# Create schemas and enable extensions
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+    -- Enable pgvector extension
+    CREATE EXTENSION IF NOT EXISTS vector;
+    
     -- Create schemas
     CREATE SCHEMA IF NOT EXISTS app;
     CREATE SCHEMA IF NOT EXISTS keycloak;

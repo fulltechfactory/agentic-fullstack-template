@@ -1,0 +1,24 @@
+# FullTechFactory - Company Information
+
+## About Us
+FullTechFactory is a technology company specializing in AI-powered solutions and fullstack development.
+
+## Services
+- AI Agent Development
+- Fullstack Web Applications
+- Cloud Infrastructure (AWS, GCP, Azure)
+- DevOps and CI/CD Pipelines
+
+## Contact
+- Website: https://fulltechfactory.com
+- Email: contact@fulltechfactory.com
+
+## Team
+Our team consists of experienced developers, AI engineers, and cloud architects dedicated to delivering high-quality solutions.
+
+## Technologies
+We work with modern technologies including:
+- Frontend: React, Next.js, TypeScript
+- Backend: Python, FastAPI, Node.js
+- AI: OpenAI, Anthropic, Agno, LangChain
+- Infrastructure: Docker, Kubernetes, Terraform, OpenTofu

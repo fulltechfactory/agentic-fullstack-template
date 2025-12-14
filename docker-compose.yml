@@ -4,10 +4,10 @@
 
 services:
   # ----------------------------------------------------------------------------
-  # PostgreSQL Database
+  # PostgreSQL Database with PgVector
   # ----------------------------------------------------------------------------
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: agentic-postgres
     restart: unless-stopped
     environment:
