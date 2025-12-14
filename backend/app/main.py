@@ -4,10 +4,8 @@ Main FastAPI application with AG-UI integration.
 
 from agno.os import AgentOS
 from agno.os.interfaces.agui import AGUI
-
 from app.agents.assistant import create_assistant_agent
 from app.config.settings import settings
-
 
 # Create the assistant agent
 assistant = create_assistant_agent()

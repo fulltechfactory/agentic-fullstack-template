@@ -1,5 +1,6 @@
 "use client";
 
+import { CopilotKit } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import { useSession, signIn, signOut } from "next-auth/react";
@@ -36,6 +37,9 @@ export default function Home() {
     );
   }
 
+  // Use Keycloak user ID as thread ID for session persistence
+  const threadId = session.user?.id || "default";
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gray-50">
       <div className="w-full max-w-4xl">
@@ -56,13 +60,15 @@ export default function Home() {
           </button>
         </div>
         <div className="h-[600px] border rounded-lg shadow-lg bg-white overflow-hidden">
-          <CopilotChat
-            className="h-full"
-            labels={{
-              title: "AI Assistant",
-              initial: "Hello! How can I help you today?",
-            }}
-          />
+          <CopilotKit runtimeUrl="/api/copilotkit" agent="agent" threadId={threadId}>
+            <CopilotChat
+              className="h-full"
+              labels={{
+                title: "AI Assistant",
+                initial: "Hello! How can I help you today?",
+              }}
+            />
+          </CopilotKit>
         </div>
       </div>
     </main>

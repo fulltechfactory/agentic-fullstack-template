@@ -11,9 +11,7 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <SessionProvider>
-      <CopilotKit runtimeUrl="/api/copilotkit" agent="agent">
-        {children}
-      </CopilotKit>
+      {children}
     </SessionProvider>
   );
 }
