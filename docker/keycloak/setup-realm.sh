@@ -25,9 +25,13 @@ if [ -z "$REALM_EXISTS" ]; then
     /opt/keycloak/bin/kcadm.sh create realms \
         -s realm=${KEYCLOAK_REALM} \
         -s enabled=true \
-        -s displayName="Agentic Application"
+        -s displayName="Agentic Application" \
+        -s sslRequired=NONE
 else
     echo "Realm ${KEYCLOAK_REALM} already exists"
+    # Update SSL setting
+    /opt/keycloak/bin/kcadm.sh update realms/${KEYCLOAK_REALM} -s sslRequired=NONE
+    echo "  SSL requirement disabled"
 fi
 
 # Get or create client

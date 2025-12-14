@@ -51,6 +51,9 @@ services:
       KC_HTTP_ENABLED: true
       KC_HEALTH_ENABLED: true
       KC_METRICS_ENABLED: false
+      KC_HOSTNAME: localhost
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME_STRICT: "false"
     ports:
       - "8080:8080"
     depends_on:
