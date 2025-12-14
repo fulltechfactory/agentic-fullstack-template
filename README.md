@@ -6,6 +6,7 @@ A fullstack template for building AI agentic applications with CopilotKit and Ag
 
 - **Multi-provider AI**: OpenAI, Anthropic, Google Gemini, Mistral, Ollama, LM Studio
 - **Session Memory**: Conversation history persisted in PostgreSQL
+- **RAG (Retrieval-Augmented Generation)**: Knowledge base with PgVector embeddings
 - **Authentication**: Keycloak + NextAuth.js with secure OAuth2/OIDC
 - **AG-UI Protocol**: Real-time streaming communication between frontend and backend
 - **Multi-cloud ready**: Infrastructure as Code for AWS, GCP, Azure (OpenTofu)
@@ -18,7 +19,7 @@ A fullstack template for building AI agentic applications with CopilotKit and Ag
 | Backend | Python 3.11, Agno, FastAPI |
 | Protocol | AG-UI (Agent-User Interaction) |
 | Auth | Keycloak + NextAuth.js |
-| Database | PostgreSQL 16 |
+| Database | PostgreSQL 16 + PgVector |
 | Infrastructure | Docker, OpenTofu |
 
 ## Prerequisites
@@ -42,11 +43,11 @@ cd agentic-fullstack-template
 
 ### 2. Configure the environment
 ```bash
-# For local development with Ollama
-make setup-dev AI_PROVIDER=ollama AI_URL=http://host.docker.internal:11434
-
-# Or with a cloud provider (OpenAI, Anthropic, etc.)
+# For cloud provider (OpenAI recommended for RAG embeddings)
 make setup-dev AI_PROVIDER=openai AI_API_KEY=sk-your-key
+
+# Or with Ollama (RAG requires OpenAI for embeddings)
+make setup-dev AI_PROVIDER=ollama AI_URL=http://host.docker.internal:11434
 ```
 
 ### 3. Start the backend services
@@ -55,7 +56,7 @@ make dev-up
 ```
 
 This starts:
-- PostgreSQL on `localhost:5432`
+- PostgreSQL + PgVector on `localhost:5432`
 - Keycloak on `http://localhost:8080`
 - Backend API on `http://localhost:8000`
 
@@ -88,13 +89,63 @@ The agent remembers conversation history across page refreshes and server restar
 3. Backend (Agno) stores conversation history in PostgreSQL
 4. On each request, Agno loads the session history from the database
 
-### Database tables (auto-created by Agno)
+## RAG (Retrieval-Augmented Generation)
+
+The agent can search a knowledge base to answer questions with relevant context.
+
+### How it works
+
+1. Documents are added to the knowledge base via API
+2. Content is chunked and embedded using OpenAI `text-embedding-3-small`
+3. Embeddings are stored in PostgreSQL with PgVector
+4. On each query, relevant documents are retrieved and added to context
+5. The agent uses this context to provide informed answers
+
+### Knowledge API
+```bash
+# Add content to knowledge base
+curl -X POST http://localhost:8000/api/knowledge/add \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Your text content here", "name": "document_name"}'
+
+# Search knowledge base
+curl -X POST http://localhost:8000/api/knowledge/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Your search query", "limit": 5}'
+
+# Get stats
+curl http://localhost:8000/api/knowledge/stats
+```
+
+### Requirements
+
+RAG requires OpenAI API key for embeddings (even when using other providers for chat).
+
+## Database
+
+### Tables (auto-created by Agno)
 
 | Table | Purpose |
 |-------|---------|
 | `app.agent_sessions` | Session data and conversation runs |
+| `app.knowledge_embeddings` | RAG document embeddings (PgVector) |
 | `app.agno_memories` | User memories (future) |
-| `app.agno_knowledge` | Knowledge base (future) |
+| `app.agno_knowledge` | Knowledge metadata |
+
+### Default Credentials (dev/staging)
+
+| User | Password | Purpose |
+|------|----------|---------|
+| postgres | postgres | Superuser (never used in app) |
+| migration | migration | Schema migrations (DDL) |
+| appuser | appuser | Application runtime (DML + DDL in dev) |
+| keycloak | keycloak | Keycloak database access |
+
+### Schema Architecture
+
+The database uses separate schemas for isolation:
+- `app` - Application data (sessions, memories, knowledge)
+- `keycloak` - Authentication data
 
 ## Available Commands
 
@@ -105,7 +156,6 @@ The agent remembers conversation history across page refreshes and server restar
 | `make setup-dev` | Configure local development environment |
 | `make setup-staging` | Configure staging environment (cloud) |
 | `make setup-deploy` | Configure production environment (cloud) |
-| `make test-setup` | Run automated tests for setup commands |
 
 ### Docker Commands
 
@@ -124,44 +174,6 @@ The agent remembers conversation history across page refreshes and server restar
 | `make frontend` | Start frontend development server |
 | `make frontend-install` | Install frontend dependencies |
 | `make frontend-env` | Generate frontend/.env.local |
-
-## Project Structure
-```
-agentic-fullstack-template/
-├── frontend/                   # Next.js + CopilotKit
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── api/
-│   │   │   │   ├── auth/       # NextAuth.js routes
-│   │   │   │   └── copilotkit/ # AG-UI endpoint
-│   │   │   ├── layout.tsx
-│   │   │   ├── page.tsx
-│   │   │   └── providers.tsx
-│   │   ├── auth.ts             # NextAuth configuration
-│   │   └── types/              # TypeScript definitions
-│   ├── Dockerfile
-│   └── package.json
-├── backend/                    # Python + Agno + FastAPI
-│   ├── app/
-│   │   ├── agents/             # Agent definitions
-│   │   ├── config/             # Settings and model factory
-│   │   └── main.py             # FastAPI application
-│   ├── Dockerfile
-│   └── requirements.txt
-├── docker/                     # Docker initialization scripts
-│   ├── keycloak/
-│   │   └── setup-realm.sh      # Auto-configure realm, client, user
-│   └── postgres/
-│       └── init-db.sh          # Initialize schemas and users
-├── infra/                      # OpenTofu configurations
-│   ├── aws/
-│   ├── gcp/
-│   └── azure/
-├── scripts/                    # Utility scripts
-├── docker-compose.yml
-├── Makefile
-└── README.md
-```
 
 ## AI Providers
 
@@ -195,29 +207,13 @@ Access Keycloak admin at `http://localhost:8080` with:
 - **Username:** `admin`
 - **Password:** `admin`
 
-## Database
-
-### Default Credentials (dev/staging)
-
-| User | Password | Purpose |
-|------|----------|---------|
-| postgres | postgres | Superuser (never used in app) |
-| migration | migration | Schema migrations (DDL) |
-| appuser | appuser | Application runtime (DML + DDL in dev) |
-| keycloak | keycloak | Keycloak database access |
-
-### Schema Architecture
-
-The database uses separate schemas for isolation:
-- `app` - Application data (sessions, memories, knowledge)
-- `keycloak` - Authentication data
-
 ## Roadmap
 
 - [x] Multi-provider AI support
 - [x] Authentication (Keycloak + NextAuth.js)
 - [x] Session Memory (PostgreSQL)
-- [ ] RAG (Retrieval-Augmented Generation with PgVector)
+- [x] RAG (Retrieval-Augmented Generation with PgVector)
+- [ ] RAG Manager UI (role-based access for knowledge management)
 - [ ] User Memory (persistent user preferences)
 - [ ] Infrastructure as Code (OpenTofu for AWS/GCP/Azure)
 - [ ] Test suite (frontend, backend, infrastructure)
