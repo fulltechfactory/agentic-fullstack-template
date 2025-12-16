@@ -8,6 +8,7 @@ A fullstack template for building AI agentic applications with CopilotKit and Ag
 - **Session Memory**: Conversation history persisted in PostgreSQL
 - **RAG (Retrieval-Augmented Generation)**: Knowledge base with PgVector embeddings
 - **Role-based Access Control**: User, RAG Supervisor, Admin roles via Keycloak
+- **Admin Dashboard**: System health, statistics, and session monitoring
 - **Modern UI**: shadcn/ui components with dark/light theme support
 - **Authentication**: Keycloak + NextAuth.js with secure OAuth2/OIDC
 - **AG-UI Protocol**: Real-time streaming communication between frontend and backend
@@ -89,7 +90,7 @@ The application implements role-based access control with three user levels:
 |---------|------|----------------|-------|
 | Chat with AI | ✅ | ✅ | ✅ |
 | Knowledge Base Management | ❌ | ✅ | ✅ |
-| Administration | ❌ | ❌ | ✅ |
+| Administration Dashboard | ❌ | ❌ | ✅ |
 
 ## Session Memory
 
@@ -130,6 +131,16 @@ curl -X POST http://localhost:8000/api/knowledge/search \
 ### Requirements
 
 RAG requires OpenAI API key for embeddings (even when using other providers for chat).
+
+## Administration Dashboard
+
+Admins can monitor system health and usage through the Administration page:
+
+- **System Health**: Database connection status, AI provider configuration
+- **Statistics**: Total sessions, knowledge documents count, environment info
+- **Recent Sessions**: View latest chat sessions with message counts
+
+Access the dashboard by signing in with `adminuser` / `adminuser` and clicking "Administration" in the sidebar.
 
 ## UI Features
 
@@ -217,7 +228,8 @@ Access Keycloak admin at `http://localhost:8080` with:
 - [x] Role-based Access Control (USER, RAG_SUPERVISOR, ADMIN)
 - [x] Modern UI with shadcn/ui
 - [x] Dark/Light theme support
-- [ ] Admin dashboard
+- [x] Admin dashboard (stats, health monitoring)
+- [ ] Admin user management (CRUD users, assign roles)
 - [ ] User Memory (persistent user preferences)
 - [ ] Infrastructure as Code (OpenTofu for AWS/GCP/Azure)
 - [ ] Test suite (frontend, backend, infrastructure)
