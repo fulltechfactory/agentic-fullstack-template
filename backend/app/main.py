@@ -32,8 +32,10 @@ app = agent_os.get_app()
 # Add knowledge API routes
 from app.api.knowledge import router as knowledge_router
 from app.api.admin import router as admin_router
+from app.api.kb import router as kb_router
 app.include_router(knowledge_router)
 app.include_router(admin_router)
+app.include_router(kb_router)
 
 
 @app.get("/health")
