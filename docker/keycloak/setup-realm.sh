@@ -29,7 +29,6 @@ if [ -z "$REALM_EXISTS" ]; then
         -s sslRequired=NONE
 else
     echo "Realm ${KEYCLOAK_REALM} already exists"
-    # Update SSL setting
     /opt/keycloak/bin/kcadm.sh update realms/${KEYCLOAK_REALM} -s sslRequired=NONE
     echo "  SSL requirement disabled"
 fi
@@ -57,7 +56,7 @@ fi
 
 # Create client roles
 echo "Creating client roles..."
-for ROLE in "RAG_SUPERVISOR" "ADMIN" "USER"; do
+for ROLE in "ADMIN" "USER"; do
     ROLE_EXISTS=$(/opt/keycloak/bin/kcadm.sh get clients/$CLIENT_UUID/roles -r ${KEYCLOAK_REALM} 2>/dev/null | grep "\"name\" : \"$ROLE\"")
     if [ -z "$ROLE_EXISTS" ]; then
         /opt/keycloak/bin/kcadm.sh create clients/$CLIENT_UUID/roles -r ${KEYCLOAK_REALM} \
@@ -89,20 +88,77 @@ else
     echo "  Client roles mapper already exists"
 fi
 
-# Function to create user with roles
+# =============================================================================
+# GROUPS SETUP
+# =============================================================================
+echo ""
+echo "Setting up groups..."
+
+create_group() {
+    local GROUP_NAME=$1
+    
+    GROUP_EXISTS=$(/opt/keycloak/bin/kcadm.sh get groups -r ${KEYCLOAK_REALM} 2>/dev/null | grep "\"name\" : \"$GROUP_NAME\"")
+    if [ -z "$GROUP_EXISTS" ]; then
+        /opt/keycloak/bin/kcadm.sh create groups -r ${KEYCLOAK_REALM} -s name=$GROUP_NAME
+        echo "  Group /$GROUP_NAME created"
+    else
+        echo "  Group /$GROUP_NAME already exists"
+    fi
+}
+
+create_group "COMPANY"
+create_group "RH"
+create_group "FINANCE"
+
+# Configure client to include groups in token
+echo "Configuring client mappers for groups..."
+GROUP_MAPPER_EXISTS=$(/opt/keycloak/bin/kcadm.sh get clients/$CLIENT_UUID/protocol-mappers/models -r ${KEYCLOAK_REALM} 2>/dev/null | grep '"name" : "groups"')
+if [ -z "$GROUP_MAPPER_EXISTS" ]; then
+    /opt/keycloak/bin/kcadm.sh create clients/$CLIENT_UUID/protocol-mappers/models -r ${KEYCLOAK_REALM} \
+        -s name="groups" \
+        -s protocol=openid-connect \
+        -s protocolMapper=oidc-group-membership-mapper \
+        -s 'config."claim.name"=groups' \
+        -s 'config."full.path"=true' \
+        -s 'config."id.token.claim"=true' \
+        -s 'config."access.token.claim"=true' \
+        -s 'config."userinfo.token.claim"=true'
+    echo "  Groups mapper created"
+else
+    echo "  Groups mapper already exists"
+fi
+
+# =============================================================================
+# USERS SETUP
+# =============================================================================
+echo ""
+echo "Setting up users..."
+
+add_user_to_group() {
+    local USERNAME=$1
+    local GROUP_NAME=$2
+    
+    USER_ID=$(/opt/keycloak/bin/kcadm.sh get users -r ${KEYCLOAK_REALM} -q username=${USERNAME} --fields id | grep -o '"id" : "[^"]*"' | cut -d'"' -f4)
+    GROUP_ID=$(/opt/keycloak/bin/kcadm.sh get groups -r ${KEYCLOAK_REALM} -q search=${GROUP_NAME} --fields id | grep -o '"id" : "[^"]*"' | cut -d'"' -f4 | head -1)
+    
+    if [ -n "$USER_ID" ] && [ -n "$GROUP_ID" ]; then
+        /opt/keycloak/bin/kcadm.sh update users/${USER_ID}/groups/${GROUP_ID} -r ${KEYCLOAK_REALM} -s realm=${KEYCLOAK_REALM} -s userId=${USER_ID} -s groupId=${GROUP_ID} -n 2>/dev/null
+        echo "    Added ${USERNAME} to /${GROUP_NAME}"
+    fi
+}
+
 create_user() {
     local USERNAME=$1
     local PASSWORD=$2
     local EMAIL=$3
     local FIRSTNAME=$4
     local LASTNAME=$5
-    shift 5
-    local ROLES=("$@")
+    local ROLE=$6
     
     echo "Setting up user ${USERNAME}..."
-    USER_EXISTS=$(/opt/keycloak/bin/kcadm.sh get users -r ${KEYCLOAK_REALM} -q username=${USERNAME} --fields id | grep '"id"')
+    USER_ID=$(/opt/keycloak/bin/kcadm.sh get users -r ${KEYCLOAK_REALM} -q username=${USERNAME} --fields id | grep -o '"id" : "[^"]*"' | cut -d'"' -f4)
     
-    if [ -z "$USER_EXISTS" ]; then
+    if [ -z "$USER_ID" ]; then
         /opt/keycloak/bin/kcadm.sh create users -r ${KEYCLOAK_REALM} \
             -s username=${USERNAME} \
             -s email=${EMAIL} \
@@ -120,27 +176,46 @@ create_user() {
         echo "  User ${USERNAME} already exists"
     fi
     
-    # Assign roles
-    for ROLE in "${ROLES[@]}"; do
-        /opt/keycloak/bin/kcadm.sh add-roles -r ${KEYCLOAK_REALM} \
-            --uusername ${USERNAME} \
-            --cclientid ${KEYCLOAK_CLIENT_ID} \
-            --rolename ${ROLE} 2>/dev/null && echo "  Role ${ROLE} assigned to ${USERNAME}" || echo "  Role ${ROLE} already assigned to ${USERNAME}"
-    done
+    # Assign role
+    /opt/keycloak/bin/kcadm.sh add-roles -r ${KEYCLOAK_REALM} \
+        --uusername ${USERNAME} \
+        --cclientid ${KEYCLOAK_CLIENT_ID} \
+        --rolename ${ROLE} 2>/dev/null && echo "  Role ${ROLE} assigned" || echo "  Role ${ROLE} already assigned"
 }
 
 # Create users
 create_user "testuser" "testuser" "testuser@example.com" "Test" "User" "USER"
-create_user "ragmanager" "ragmanager" "ragmanager@example.com" "RAG" "Manager" "USER" "RAG_SUPERVISOR"
-create_user "adminuser" "adminuser" "adminuser@example.com" "Admin" "User" "USER" "ADMIN"
+create_user "adminuser" "adminuser" "adminuser@example.com" "Admin" "User" "ADMIN"
+create_user "rh_manager" "rh_manager" "rh_manager@example.com" "RH" "Manager" "USER"
+create_user "finance_manager" "finance_manager" "finance_manager@example.com" "Finance" "Manager" "USER"
+
+# Assign users to groups
+echo ""
+echo "Assigning users to groups..."
+add_user_to_group "testuser" "COMPANY"
+add_user_to_group "adminuser" "COMPANY"
+add_user_to_group "rh_manager" "COMPANY"
+add_user_to_group "rh_manager" "RH"
+add_user_to_group "finance_manager" "COMPANY"
+add_user_to_group "finance_manager" "FINANCE"
 
 echo ""
 echo "========================================"
 echo "Keycloak setup completed!"
 echo "========================================"
 echo ""
-echo "Users available:"
-echo "  - testuser / testuser (USER role)"
-echo "  - ragmanager / ragmanager (USER + RAG_SUPERVISOR roles)"
-echo "  - adminuser / adminuser (USER + ADMIN roles)"
+echo "Roles:"
+echo "  - USER: Access to chat and KBs based on group membership"
+echo "  - ADMIN: Manage users, groups, KBs (no data access)"
+echo ""
+echo "Groups:"
+echo "  - /COMPANY: All users (Company KB read access)"
+echo "  - /RH: RH department"
+echo "  - /FINANCE: Finance department"
+echo ""
+echo "Users:"
+echo "  - testuser / testuser (USER, COMPANY)"
+echo "  - adminuser / adminuser (ADMIN, COMPANY)"
+echo "  - rh_manager / rh_manager (USER, COMPANY + RH)"
+echo "  - finance_manager / finance_manager (USER, COMPANY + FINANCE)"
 echo ""
