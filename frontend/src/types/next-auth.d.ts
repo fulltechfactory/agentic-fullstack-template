@@ -6,6 +6,7 @@ declare module "next-auth" {
     user: {
       id: string;
       roles?: string[];
+      groups?: string[];
     } & DefaultSession["user"];
   }
 }
@@ -16,5 +17,6 @@ declare module "next-auth/jwt" {
     idToken?: string;
     keycloakId?: string;
     roles?: string[];
+    groups?: string[];
   }
 }
