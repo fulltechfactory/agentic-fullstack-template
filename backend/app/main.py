@@ -33,9 +33,11 @@ app = agent_os.get_app()
 from app.api.knowledge import router as knowledge_router
 from app.api.admin import router as admin_router
 from app.api.kb import router as kb_router
+from app.api.permissions import router as permissions_router
 app.include_router(knowledge_router)
 app.include_router(admin_router)
 app.include_router(kb_router)
+app.include_router(permissions_router)
 
 
 @app.get("/health")
