@@ -42,7 +42,7 @@ A fullstack template for building AI-powered applications with CopilotKit and Ag
 
 ### 1. Clone the repository
 ```bash
-git clone git@github.com:fulltechfactory/keystone.git
+git clone git@github.com:fulltechfactory/agentic-fullstack-template.git keystone
 cd keystone
 ```
 
