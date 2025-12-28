@@ -7,8 +7,9 @@ A fullstack template for building AI-powered applications with CopilotKit and Ag
 - **Multi-provider AI**: OpenAI, Anthropic, Google Gemini, Mistral, Ollama, LM Studio
 - **Session Memory**: Conversation history persisted in PostgreSQL
 - **Multi-KB RAG**: Multiple knowledge bases with group-based access control
+- **File Upload**: Support for PDF, Word, Markdown, Text, and 20+ code file formats
 - **Group-based Access Control**: Keycloak groups with READ/WRITE permissions per KB
-- **Admin Dashboard**: System health, statistics, KB and permissions management
+- **Admin Dashboard**: User & group management, KB permissions, system health
 - **Modern UI**: shadcn/ui components with dark/light theme support
 - **Authentication**: Keycloak + NextAuth.js with secure OAuth2/OIDC
 - **AG-UI Protocol**: Real-time streaming communication between frontend and backend
@@ -64,7 +65,7 @@ This starts:
 - Keycloak on `http://localhost:8080`
 - Backend API on `http://localhost:8000`
 
-Wait ~1 minute for Keycloak to initialize the realm and users.
+Wait ~1 minute for Keycloak to initialize.
 
 ### 4. Start the frontend
 ```bash
@@ -73,35 +74,45 @@ make frontend
 
 ### 5. Access the application
 
-Open `http://localhost:3000` and sign in with one of the test users.
+Open `http://localhost:3000` and sign in with `adminuser` / `adminuser`.
+
+## Getting Started Workflow
+
+After installation, follow these steps to set up your organization:
+
+### 1. Sign in as Admin
+Log in with `adminuser` / `adminuser` to access the admin panel.
+
+### 2. Create a Group
+Navigate to **Users & Groups** and create a new group (e.g., "RH").
+A Knowledge Base is automatically created for each group.
+
+### 3. Create Users
+Create users and assign them to appropriate groups.
+
+### 4. Grant Write Permissions
+In **KB Management**, grant WRITE permission to users who need to manage documents.
+
+### 5. Upload Documents
+Users with WRITE permission can upload files via the **Knowledge Base** page using drag & drop.
+
+### 6. Start Chatting
+All group members can query the knowledge base through the chat interface.
 
 ## User Roles & Groups
-
-The application implements group-based access control with Keycloak groups.
 
 ### Roles
 
 | Role | Description |
 |------|-------------|
-| `USER` | Access to chat and knowledge bases based on group membership |
 | `ADMIN` | Manage users, groups, KBs and permissions (no access to KB content) |
+| `USER` | Access to chat and knowledge bases based on group membership |
 
-### Groups
+### Default Setup
 
-| Group | Description |
-|-------|-------------|
-| `/COMPANY` | All users (Company KB - shared knowledge) |
-| `/RH` | HR department |
-| `/FINANCE` | Finance department |
-
-### Test Users
-
-| User | Password | Role | Groups | Access |
-|------|----------|------|--------|--------|
-
-
-
-| `adminuser` | `adminuser` | ADMIN | /COMPANY | Full admin access |
+| User | Password | Role | Description |
+|------|----------|------|-------------|
+| `adminuser` | `adminuser` | ADMIN | Default administrator |
 
 ### Permission Model
 
@@ -113,43 +124,75 @@ The application implements group-based access control with Keycloak groups.
 
 **Key principle**: ADMIN role manages access but cannot read document content.
 
+## File Upload
+
+### Supported Formats
+
+| Category | Extensions |
+|----------|------------|
+| **Documents** | `.pdf`, `.docx` |
+| **Text** | `.txt`, `.md` |
+| **Code** | `.py`, `.js`, `.ts`, `.tsx`, `.jsx`, `.c`, `.cpp`, `.h`, `.rs`, `.go`, `.java`, `.html`, `.css`, `.json`, `.yaml`, `.sql`, `.sh`, and more |
+
+### Features
+
+- Drag & drop upload interface
+- Automatic text extraction from PDF and Word documents
+- Language detection for code files
+- Maximum file size: 10MB
+- Metadata preservation (filename, type, language)
+
 ## Multi-KB Architecture
 
 The application supports multiple knowledge bases, each linked to a Keycloak group.
 
 ### How it works
 
-1. Each KB is owned by a Keycloak group (e.g., `/RH` owns "RH KB")
+1. ADMIN creates a group → Knowledge Base is auto-created
 2. Group members automatically have READ access to their KB
 3. ADMIN grants WRITE permission to specific users
-4. Users can receive cross-group READ access to other KBs
+4. Users with WRITE can upload documents (text or files)
 5. Chat searches all accessible KBs and cites sources in responses
 
 ### Knowledge Base Management
 
 **For Users (Knowledge Base page):**
 - View all accessible KBs with READ/WRITE badges
-- Add documents to KBs with WRITE permission
-- Delete documents from KBs with WRITE permission
+- Upload files via drag & drop (with WRITE permission)
+- Add text documents manually
+- Delete documents (with WRITE permission)
 
 **For Admins (KB Management page):**
 - View all KBs with document counts
 - Manage permissions (grant/revoke WRITE, add cross-group READ)
 - Cannot access document content
 
-### Creating a new KB
+## Administration
 
-1. ADMIN creates a new group in Keycloak (e.g., `/LEGAL`)
-2. ADMIN assigns users to the group
-3. ADMIN grants WRITE permission to a user (e.g., legal_manager)
-4. User with WRITE creates the KB via the Knowledge Base UI
-5. Other group members can now query the KB
+### Users & Groups (`/admin/users`)
+
+- Create and delete users
+- Create and delete groups (auto-creates/deletes associated KB)
+- Assign users to groups
+- Toggle group membership
+
+### KB Management (`/admin/knowledge-bases`)
+
+- View all knowledge bases with document counts
+- Grant WRITE permission to users
+- Grant cross-group READ access
+- Remove permissions
+
+### Dashboard (`/admin`)
+
+- System health monitoring
+- Database connection status
+- AI provider configuration
+- Session statistics
 
 ## Session Memory
 
 The agent remembers conversation history across page refreshes and server restarts.
-
-### How it works
 
 1. User authenticates via Keycloak → receives a unique `user_id`
 2. Frontend passes `user_id` as `threadId` to CopilotKit
@@ -160,58 +203,15 @@ The agent remembers conversation history across page refreshes and server restar
 
 The agent searches accessible knowledge bases to answer questions with relevant context.
 
-### How it works
-
-1. Users with WRITE permission add documents via the Knowledge Base UI
+1. Users with WRITE permission upload documents via the Knowledge Base UI
 2. Content is chunked and embedded using OpenAI `text-embedding-3-small`
 3. Embeddings are stored in PostgreSQL with PgVector
 4. On each query, relevant documents are retrieved from accessible KBs
 5. The agent uses this context and **cites the source documents** in responses
 
-### Knowledge API
-```bash
-# List accessible KBs
-curl -X GET http://localhost:8000/api/kb \
-  -H "X-User-ID: user-id" \
-  -H "X-User-Groups: /COMPANY,/RH" \
-  -H "X-User-Roles: USER"
-
-# Add document to a KB (requires WRITE)
-curl -X POST http://localhost:8000/api/kb/{kb_id}/documents \
-  -H "Content-Type: application/json" \
-  -H "X-User-ID: user-id" \
-  -H "X-User-Groups: /COMPANY,/RH" \
-  -H "X-User-Roles: USER" \
-  -d '{"content": "Your text content here", "name": "document_name"}'
-
-# List documents in a KB (requires READ)
-curl -X GET http://localhost:8000/api/kb/{kb_id}/documents \
-  -H "X-User-ID: user-id" \
-  -H "X-User-Groups: /COMPANY,/RH" \
-  -H "X-User-Roles: USER"
-```
-
 ### Requirements
 
 RAG requires OpenAI API key for embeddings (even when using other providers for chat).
-
-## Administration
-
-### Dashboard (`/admin`)
-
-- **System Health**: Database connection status, AI provider configuration
-- **Statistics**: Total sessions, knowledge documents count, environment info
-- **Recent Sessions**: View latest chat sessions with message counts
-
-### KB Management (`/admin/knowledge-bases`)
-
-- View all knowledge bases with document counts
-- Manage permissions per KB:
-  - Grant WRITE permission to users
-  - Grant cross-group READ access
-  - Remove permissions
-
-Access by signing in with `adminuser` / `adminuser`.
 
 ## UI Features
 
@@ -236,13 +236,13 @@ The application supports light, dark, and system themes. Toggle via the sun/moon
 | `app.knowledge_embeddings` | RAG document embeddings (PgVector) |
 | `app.knowledge_base_permissions` | WRITE and cross-group READ permissions |
 
-### Default Credentials (dev/staging)
+### Default Credentials (dev only)
 
 | User | Password | Purpose |
 |------|----------|---------|
 | postgres | postgres | Superuser (never used in app) |
 | migration | migration | Schema migrations (DDL) |
-| appuser | appuser | Application runtime (DML + DDL in dev) |
+| appuser | appuser | Application runtime |
 | keycloak | keycloak | Keycloak database access |
 
 ## Available Commands
@@ -264,6 +264,7 @@ The application supports light, dark, and system themes. Toggle via the sun/moon
 | `make dev-logs` | Show container logs |
 | `make dev-ps` | Show container status |
 | `make dev-clean` | Remove all data and volumes |
+| `make db-migrate` | Run database migrations |
 
 ### Frontend Commands
 
@@ -290,6 +291,16 @@ Access Keycloak admin at `http://localhost:8080` with:
 - **Username:** `admin`
 - **Password:** `admin`
 
+## Renaming the Project
+
+To rename the project for your own use (after forking):
+
+```bash
+./scripts/rename-project.sh "My Project Name"
+```
+
+This updates all references (containers, database, Keycloak realm, UI).
+
 ## Roadmap
 
 - [x] Multi-provider AI support
@@ -297,12 +308,13 @@ Access Keycloak admin at `http://localhost:8080` with:
 - [x] Session Memory (PostgreSQL)
 - [x] RAG (Retrieval-Augmented Generation with PgVector)
 - [x] Multi-KB with group-based access control
+- [x] File upload (PDF, Word, Markdown, Code files)
 - [x] Modern UI with shadcn/ui
 - [x] Dark/Light theme support
 - [x] Admin dashboard (stats, health monitoring)
+- [x] Admin user & group management
 - [x] KB Management (permissions, WRITE/READ control)
 - [x] Source citations in chat responses
-- [ ] Admin user management (CRUD users, assign roles)
 - [ ] KB selector in chat (filter by specific KB)
 - [ ] User Memory (persistent user preferences)
 - [ ] Infrastructure as Code (OpenTofu for AWS/GCP/Azure)
