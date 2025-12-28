@@ -98,10 +98,10 @@ The application implements group-based access control with Keycloak groups.
 
 | User | Password | Role | Groups | Access |
 |------|----------|------|--------|--------|
-| `testuser` | `testuser` | USER | /COMPANY | Company KB (READ) |
-| `rh_manager` | `rh_manager` | USER | /COMPANY, /RH | Company KB (READ), RH KB (WRITE) |
-| `finance_manager` | `finance_manager` | USER | /COMPANY, /FINANCE | Company KB (READ), Finance KB (WRITE) |
-| `adminuser` | `adminuser` | ADMIN | /COMPANY | KB Management, no content access |
+
+
+
+| `adminuser` | `adminuser` | ADMIN | /COMPANY | Full admin access |
 
 ### Permission Model
 
