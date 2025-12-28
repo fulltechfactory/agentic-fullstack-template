@@ -59,7 +59,7 @@ export default function Home() {
                 className="h-full"
                 labels={{
                   title: "AI Assistant",
-                  initial: "Hello! How can I help you today?",
+                  initial: "Hello! I can search the knowledge base to help answer your questions. How can I help you today?",
                 }}
               />
             </CopilotKit>
