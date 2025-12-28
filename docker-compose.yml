@@ -8,12 +8,12 @@ services:
   # ----------------------------------------------------------------------------
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: agentic-postgres
+    container_name: keystone-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_APP_NAME:-agentic_db}
+      POSTGRES_DB: ${DB_APP_NAME:-keystone_db}
       DB_MIGRATION_USER: ${DB_MIGRATION_USER:-migration}
       DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD:-migration}
       DB_APP_USER: ${DB_APP_USER:-appuser}
@@ -26,7 +26,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_APP_NAME:-agentic_db}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_APP_NAME:-keystone_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -36,7 +36,7 @@ services:
   # ----------------------------------------------------------------------------
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
-    container_name: agentic-keycloak
+    container_name: keystone-keycloak
     restart: unless-stopped
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
@@ -44,7 +44,7 @@ services:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/${DB_APP_NAME:-agentic_db}?currentSchema=${DB_KEYCLOAK_SCHEMA:-keycloak}
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${DB_APP_NAME:-keystone_db}?currentSchema=${DB_KEYCLOAK_SCHEMA:-keycloak}
       KC_DB_USERNAME: ${DB_KEYCLOAK_USER:-keycloak}
       KC_DB_PASSWORD: ${DB_KEYCLOAK_PASSWORD:-keycloak}
       KC_DB_SCHEMA: ${DB_KEYCLOAK_SCHEMA:-keycloak}
@@ -72,14 +72,14 @@ services:
   # ----------------------------------------------------------------------------
   keycloak-setup:
     image: quay.io/keycloak/keycloak:26.0
-    container_name: agentic-keycloak-setup
+    container_name: keystone-keycloak-setup
     environment:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-      REALM_NAME: ${KEYCLOAK_REALM:-agentic}
-      CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-agentic-app}
-      CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-agentic-secret}
+      REALM_NAME: ${KEYCLOAK_REALM:-keystone}
+      CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-keystone-app}
+      CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-keystone-secret}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     volumes:
       - ./docker/keycloak/setup-realm.sh:/opt/setup-realm.sh:ro
@@ -96,7 +96,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: agentic-backend
+    container_name: keystone-backend
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -110,7 +110,7 @@ services:
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       DB_APP_HOST: postgres
       DB_APP_PORT: 5432
-      DB_APP_NAME: ${DB_APP_NAME:-agentic_db}
+      DB_APP_NAME: ${DB_APP_NAME:-keystone_db}
       DB_APP_SCHEMA: ${DB_APP_SCHEMA:-app}
       DB_APP_USER: ${DB_APP_USER:-appuser}
       DB_APP_PASSWORD: ${DB_APP_PASSWORD:-appuser}
@@ -130,4 +130,4 @@ services:
 
 volumes:
   postgres_data:
-    name: agentic-postgres-data
+    name: keystone-postgres-data

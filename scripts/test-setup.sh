@@ -64,7 +64,7 @@ check_config_value .dev-config "OPENAI_API_KEY" "sk-test-key-123"
 check_config_value .dev-config "POSTGRES_PASSWORD" "postgres"
 check_config_value .dev-config "DB_APP_HOST" "postgres"
 check_config_value .dev-config "DB_APP_PORT" "5432"
-check_config_value .dev-config "DB_APP_NAME" "agentic_db"
+check_config_value .dev-config "DB_APP_NAME" "keystone_db"
 check_config_value .dev-config "DB_APP_SCHEMA" "app"
 check_config_value .dev-config "DB_APP_USER" "appuser"
 check_config_value .dev-config "DB_KEYCLOAK_HOST" "postgres"
@@ -77,7 +77,7 @@ cleanup
 make setup-dev AI_PROVIDER=ollama > /dev/null 2>&1
 check_config_value .dev-config "AI_PROVIDER" "ollama"
 check_config_value .dev-config "AI_URL" "http://localhost:11434"
-check_config_value .dev-config "DB_APP_NAME" "agentic_db"
+check_config_value .dev-config "DB_APP_NAME" "keystone_db"
 
 log_test "setup-dev with LM Studio (local)"
 cleanup
@@ -144,7 +144,7 @@ make setup-deploy \
     POSTGRES_PASSWORD=super-secret-pg \
     DB_APP_HOST=postgres \
     DB_APP_PORT=5432 \
-    DB_APP_NAME=agentic_db \
+    DB_APP_NAME=keystone_db \
     DB_APP_SCHEMA=app \
     DB_APP_USER=app_prod \
     DB_APP_PASSWORD=app-secret \
@@ -152,7 +152,7 @@ make setup-deploy \
     DB_MIGRATION_PASSWORD=mig-secret \
     DB_KEYCLOAK_HOST=postgres \
     DB_KEYCLOAK_PORT=5432 \
-    DB_KEYCLOAK_NAME=agentic_db \
+    DB_KEYCLOAK_NAME=keystone_db \
     DB_KEYCLOAK_SCHEMA=keycloak \
     DB_KEYCLOAK_USER=kc_prod \
     DB_KEYCLOAK_PASSWORD=kc-secret \

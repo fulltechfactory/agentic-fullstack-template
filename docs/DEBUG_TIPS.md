@@ -4,7 +4,7 @@
 Open the logs:
 
 ```
-docker logs agentic-backend
+docker logs keystone-backend
 ```
 
 After fixing the issue, shut down everything, rebuild and launch

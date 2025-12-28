@@ -16,12 +16,12 @@ POSTGRES_PASSWORD ?=
 # Database connection defaults
 DB_APP_HOST ?= postgres
 DB_APP_PORT ?= 5432
-DB_APP_NAME ?= agentic_db
+DB_APP_NAME ?= keystone_db
 DB_APP_SCHEMA ?= app
 
 DB_KEYCLOAK_HOST ?= postgres
 DB_KEYCLOAK_PORT ?= 5432
-DB_KEYCLOAK_NAME ?= agentic_db
+DB_KEYCLOAK_NAME ?= keystone_db
 DB_KEYCLOAK_SCHEMA ?= keycloak
 
 # Database users
@@ -164,7 +164,7 @@ setup-dev:
 	echo "# Application Database" >> $(DEV_CONFIG); \
 	echo "DB_APP_HOST=postgres" >> $(DEV_CONFIG); \
 	echo "DB_APP_PORT=5432" >> $(DEV_CONFIG); \
-	echo "DB_APP_NAME=agentic_db" >> $(DEV_CONFIG); \
+	echo "DB_APP_NAME=keystone_db" >> $(DEV_CONFIG); \
 	echo "DB_APP_SCHEMA=app" >> $(DEV_CONFIG); \
 	echo "DB_APP_USER=appuser" >> $(DEV_CONFIG); \
 	echo "DB_APP_PASSWORD=appuser" >> $(DEV_CONFIG); \
@@ -176,7 +176,7 @@ setup-dev:
 	echo "# Keycloak Database" >> $(DEV_CONFIG); \
 	echo "DB_KEYCLOAK_HOST=postgres" >> $(DEV_CONFIG); \
 	echo "DB_KEYCLOAK_PORT=5432" >> $(DEV_CONFIG); \
-	echo "DB_KEYCLOAK_NAME=agentic_db" >> $(DEV_CONFIG); \
+	echo "DB_KEYCLOAK_NAME=keystone_db" >> $(DEV_CONFIG); \
 	echo "DB_KEYCLOAK_SCHEMA=keycloak" >> $(DEV_CONFIG); \
 	echo "DB_KEYCLOAK_USER=keycloak" >> $(DEV_CONFIG); \
 	echo "DB_KEYCLOAK_PASSWORD=keycloak" >> $(DEV_CONFIG); \
@@ -316,7 +316,7 @@ setup-staging:
 	echo "# Application Database" >> $(STAGING_CONFIG); \
 	echo "DB_APP_HOST=postgres" >> $(STAGING_CONFIG); \
 	echo "DB_APP_PORT=5432" >> $(STAGING_CONFIG); \
-	echo "DB_APP_NAME=agentic_db" >> $(STAGING_CONFIG); \
+	echo "DB_APP_NAME=keystone_db" >> $(STAGING_CONFIG); \
 	echo "DB_APP_SCHEMA=app" >> $(STAGING_CONFIG); \
 	echo "DB_APP_USER=appuser" >> $(STAGING_CONFIG); \
 	echo "DB_APP_PASSWORD=appuser" >> $(STAGING_CONFIG); \
@@ -328,7 +328,7 @@ setup-staging:
 	echo "# Keycloak Database" >> $(STAGING_CONFIG); \
 	echo "DB_KEYCLOAK_HOST=postgres" >> $(STAGING_CONFIG); \
 	echo "DB_KEYCLOAK_PORT=5432" >> $(STAGING_CONFIG); \
-	echo "DB_KEYCLOAK_NAME=agentic_db" >> $(STAGING_CONFIG); \
+	echo "DB_KEYCLOAK_NAME=keystone_db" >> $(STAGING_CONFIG); \
 	echo "DB_KEYCLOAK_SCHEMA=keycloak" >> $(STAGING_CONFIG); \
 	echo "DB_KEYCLOAK_USER=keycloak" >> $(STAGING_CONFIG); \
 	echo "DB_KEYCLOAK_PASSWORD=keycloak" >> $(STAGING_CONFIG); \
@@ -438,8 +438,8 @@ setup-deploy:
 			db_app_host=$${db_app_host:-postgres}; \
 			read -p "app db port [5432]: " db_app_port; \
 			db_app_port=$${db_app_port:-5432}; \
-			read -p "app db name [agentic_db]: " db_app_name; \
-			db_app_name=$${db_app_name:-agentic_db}; \
+			read -p "app db name [keystone_db]: " db_app_name; \
+			db_app_name=$${db_app_name:-keystone_db}; \
 			read -p "app db schema [app]: " db_app_schema; \
 			db_app_schema=$${db_app_schema:-app}; \
 			read -p "app username [appuser]: " app_user; \
@@ -456,8 +456,8 @@ setup-deploy:
 			db_kc_host=$${db_kc_host:-postgres}; \
 			read -p "keycloak db port [5432]: " db_kc_port; \
 			db_kc_port=$${db_kc_port:-5432}; \
-			read -p "keycloak db name [agentic_db]: " db_kc_name; \
-			db_kc_name=$${db_kc_name:-agentic_db}; \
+			read -p "keycloak db name [keystone_db]: " db_kc_name; \
+			db_kc_name=$${db_kc_name:-keystone_db}; \
 			read -p "keycloak db schema [keycloak]: " db_kc_schema; \
 			db_kc_schema=$${db_kc_schema:-keycloak}; \
 			read -p "keycloak db username [keycloak]: " kc_db_user; \
@@ -635,9 +635,9 @@ frontend-env:
 	@echo "AUTH_SECRET=$$(openssl rand -base64 32)" >> frontend/.env.local
 	@echo "" >> frontend/.env.local
 	@echo "# Keycloak" >> frontend/.env.local
-	@echo "KEYCLOAK_CLIENT_ID=agentic-app" >> frontend/.env.local
-	@echo "KEYCLOAK_CLIENT_SECRET=agentic-secret" >> frontend/.env.local
-	@echo "KEYCLOAK_ISSUER=http://localhost:8080/realms/agentic" >> frontend/.env.local
+	@echo "KEYCLOAK_CLIENT_ID=keystone-app" >> frontend/.env.local
+	@echo "KEYCLOAK_CLIENT_SECRET=keystone-secret" >> frontend/.env.local
+	@echo "KEYCLOAK_ISSUER=http://localhost:8080/realms/keystone" >> frontend/.env.local
 	@echo "[OK] Frontend env saved to frontend/.env.local"
 
 # ============================================================

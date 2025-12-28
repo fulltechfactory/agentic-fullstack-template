@@ -91,7 +91,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <Bot className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Agentic App</span>
+                  <span className="truncate font-semibold">Keystone</span>
                   <span className="truncate text-xs">AI Assistant</span>
                 </div>
               </a>

@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Use correct environment variable names from docker-compose
-KEYCLOAK_REALM=${REALM_NAME:-agentic}
-KEYCLOAK_CLIENT_ID=${CLIENT_ID:-agentic-app}
-KEYCLOAK_CLIENT_SECRET=${CLIENT_SECRET:-agentic-secret}
+KEYCLOAK_REALM=${REALM_NAME:-keystone}
+KEYCLOAK_CLIENT_ID=${CLIENT_ID:-keystone-app}
+KEYCLOAK_CLIENT_SECRET=${CLIENT_SECRET:-keystone-secret}
 
 # Wait for Keycloak to be ready (using kcadm instead of curl)
 echo "Waiting for Keycloak to be ready..."
@@ -25,7 +25,7 @@ if [ -z "$REALM_EXISTS" ]; then
     /opt/keycloak/bin/kcadm.sh create realms \
         -s realm=${KEYCLOAK_REALM} \
         -s enabled=true \
-        -s displayName="Agentic Application" \
+        -s displayName="Keystone" \
         -s sslRequired=NONE
 else
     echo "Realm ${KEYCLOAK_REALM} already exists"

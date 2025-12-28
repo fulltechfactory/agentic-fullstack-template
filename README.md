@@ -1,6 +1,6 @@
-# Agentic Fullstack Template
+# Keystone
 
-A fullstack template for building AI agentic applications with CopilotKit and Agno.
+A fullstack template for building AI-powered applications with CopilotKit and Agno.
 
 ## Features
 
@@ -41,8 +41,8 @@ A fullstack template for building AI agentic applications with CopilotKit and Ag
 
 ### 1. Clone the repository
 ```bash
-git clone git@github.com:fulltechfactory/agentic-fullstack-template.git
-cd agentic-fullstack-template
+git clone git@github.com:fulltechfactory/keystone.git
+cd keystone
 ```
 
 ### 2. Configure the environment
@@ -327,10 +327,10 @@ make dev-up
 
 ### Check service logs
 ```bash
-docker logs agentic-postgres
-docker logs agentic-keycloak
-docker logs agentic-backend
-docker logs agentic-keycloak-setup
+docker logs keystone-postgres
+docker logs keystone-keycloak
+docker logs keystone-backend
+docker logs keystone-keycloak-setup
 ```
 
 ### Reset all data
