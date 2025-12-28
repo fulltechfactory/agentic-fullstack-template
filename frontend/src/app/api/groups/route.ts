@@ -17,7 +17,7 @@ export async function GET() {
 
   try {
     const response = await fetch(
-      `${process.env.BACKEND_URL || "http://localhost:8000"}/api/users`,
+      `${process.env.BACKEND_URL || "http://localhost:8000"}/api/groups`,
       {
         method: "GET",
         headers: {
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const response = await fetch(
-      `${process.env.BACKEND_URL || "http://localhost:8000"}/api/users`,
+      `${process.env.BACKEND_URL || "http://localhost:8000"}/api/groups`,
       {
         method: "POST",
         headers: {

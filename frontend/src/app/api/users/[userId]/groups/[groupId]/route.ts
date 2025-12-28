@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 
-export async function GET() {
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ userId: string; groupId: string }> }
+) {
   const session = await auth();
   
   if (!session) {
@@ -15,11 +18,13 @@ export async function GET() {
     return NextResponse.json({ detail: "Forbidden" }, { status: 403 });
   }
 
+  const { userId, groupId } = await params;
+
   try {
     const response = await fetch(
-      `${process.env.BACKEND_URL || "http://localhost:8000"}/api/users`,
+      `${process.env.BACKEND_URL || "http://localhost:8000"}/api/users/${userId}/groups/${groupId}`,
       {
-        method: "GET",
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           "X-User-Roles": roles.join(","),
@@ -34,7 +39,10 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ userId: string; groupId: string }> }
+) {
   const session = await auth();
   
   if (!session) {
@@ -48,17 +56,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ detail: "Forbidden" }, { status: 403 });
   }
 
+  const { userId, groupId } = await params;
+
   try {
-    const body = await request.json();
     const response = await fetch(
-      `${process.env.BACKEND_URL || "http://localhost:8000"}/api/users`,
+      `${process.env.BACKEND_URL || "http://localhost:8000"}/api/users/${userId}/groups/${groupId}`,
       {
-        method: "POST",
+        method: "DELETE",
         headers: {
           "Content-Type": "application/json",
           "X-User-Roles": roles.join(","),
         },
-        body: JSON.stringify(body),
       }
     );
     

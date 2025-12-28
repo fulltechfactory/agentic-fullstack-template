@@ -6,6 +6,7 @@ import {
   Settings,
   MessageSquare,
   Database,
+  Users,
 } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { NavMain } from "@/components/nav-main"
@@ -34,8 +35,8 @@ const getNavItems = (roles: string[], groups: string[]) => {
     isActive: true,
   })
   
-  // Knowledge Base - visible to users with groups (they have at least READ on their group KB)
-  if (groups.length > 0 && roles.includes("USER")) {
+  // Knowledge Base - visible to users with groups (non-ADMIN only)
+  if (groups.length > 0 && !roles.includes("ADMIN")) {
     items.push({
       title: "Knowledge Base",
       url: "/knowledge",
@@ -51,6 +52,11 @@ const getNavItems = (roles: string[], groups: string[]) => {
       icon: Settings,
     })
     items.push({
+      title: "Users & Groups",
+      url: "/admin/users",
+      icon: Users,
+    })
+    items.push({
       title: "KB Management",
       url: "/admin/knowledge-bases",
       icon: Database,
@@ -62,12 +68,11 @@ const getNavItems = (roles: string[], groups: string[]) => {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession()
-  
-  const user = session?.user as { 
-    name?: string; 
-    email?: string; 
-    roles?: string[]; 
-    groups?: string[] 
+  const user = session?.user as {
+    name?: string;
+    email?: string;
+    roles?: string[];
+    groups?: string[]
   } | undefined
   
   const roles = user?.roles || []
@@ -79,7 +84,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     email: user?.email || "",
     avatar: "",
   }
-
+  
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
