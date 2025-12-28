@@ -104,7 +104,7 @@ export default function KnowledgeBasesAdminPage() {
     setPermissionsLoading(true);
     try {
       const encodedGroup = encodeURIComponent(groupName.replace("/", ""));
-      const res = await fetch(`/api/kb/${encodedGroup}/permissions`);
+      const res = await fetch("/api/kb/groups/" + encodedGroup + "/permissions");
       if (res.ok) {
         const data = await res.json();
         setPermissions(data.permissions || []);
@@ -132,7 +132,7 @@ export default function KnowledgeBasesAdminPage() {
     
     try {
       const encodedGroup = encodeURIComponent(groupName.replace("/", ""));
-      const res = await fetch(`/api/kb/${encodedGroup}/permissions`, {
+      const res = await fetch("/api/kb/groups/" + encodedGroup + "/permissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -158,7 +158,7 @@ export default function KnowledgeBasesAdminPage() {
     
     try {
       const encodedGroup = encodeURIComponent(groupName.replace("/", ""));
-      const res = await fetch(`/api/kb/${encodedGroup}/permissions/${permId}`, {
+      const res = await fetch("/api/kb/groups/" + encodedGroup + "/permissions/" + permId, {
         method: "DELETE",
       });
       
@@ -176,7 +176,7 @@ export default function KnowledgeBasesAdminPage() {
   const getUserDisplay = (userId: string) => {
     const user = usersMap[userId];
     if (user) {
-      return `${user.firstName} ${user.lastName} (${user.username})`;
+      return user.firstName + " " + user.lastName + " (" + user.username + ")";
     }
     return userId.substring(0, 8) + "...";
   };
