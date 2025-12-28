@@ -6,12 +6,13 @@ A fullstack template for building AI agentic applications with CopilotKit and Ag
 
 - **Multi-provider AI**: OpenAI, Anthropic, Google Gemini, Mistral, Ollama, LM Studio
 - **Session Memory**: Conversation history persisted in PostgreSQL
-- **RAG (Retrieval-Augmented Generation)**: Knowledge base with PgVector embeddings
-- **Role-based Access Control**: User, RAG Supervisor, Admin roles via Keycloak
-- **Admin Dashboard**: System health, statistics, and session monitoring
+- **Multi-KB RAG**: Multiple knowledge bases with group-based access control
+- **Group-based Access Control**: Keycloak groups with READ/WRITE permissions per KB
+- **Admin Dashboard**: System health, statistics, KB and permissions management
 - **Modern UI**: shadcn/ui components with dark/light theme support
 - **Authentication**: Keycloak + NextAuth.js with secure OAuth2/OIDC
 - **AG-UI Protocol**: Real-time streaming communication between frontend and backend
+- **Source Citations**: AI responses cite document sources from knowledge base
 - **Multi-cloud ready**: Infrastructure as Code for AWS, GCP, Azure (OpenTofu)
 
 ## Stack
@@ -74,23 +75,75 @@ make frontend
 
 Open `http://localhost:3000` and sign in with one of the test users.
 
-## User Roles
+## User Roles & Groups
 
-The application implements role-based access control with three user levels:
+The application implements group-based access control with Keycloak groups.
 
-| User | Password | Roles | Access |
-|------|----------|-------|--------|
-| `testuser` | `testuser` | USER | Chat only |
-| `ragmanager` | `ragmanager` | USER, RAG_SUPERVISOR | Chat + Knowledge Base Management |
-| `adminuser` | `adminuser` | USER, ADMIN | Full access (Chat + Knowledge Base + Admin) |
+### Roles
 
-### Role Permissions
+| Role | Description |
+|------|-------------|
+| `USER` | Access to chat and knowledge bases based on group membership |
+| `ADMIN` | Manage users, groups, KBs and permissions (no access to KB content) |
 
-| Feature | USER | RAG_SUPERVISOR | ADMIN |
-|---------|------|----------------|-------|
-| Chat with AI | ✅ | ✅ | ✅ |
-| Knowledge Base Management | ❌ | ✅ | ✅ |
-| Administration Dashboard | ❌ | ❌ | ✅ |
+### Groups
+
+| Group | Description |
+|-------|-------------|
+| `/COMPANY` | All users (Company KB - shared knowledge) |
+| `/RH` | HR department |
+| `/FINANCE` | Finance department |
+
+### Test Users
+
+| User | Password | Role | Groups | Access |
+|------|----------|------|--------|--------|
+| `testuser` | `testuser` | USER | /COMPANY | Company KB (READ) |
+| `rh_manager` | `rh_manager` | USER | /COMPANY, /RH | Company KB (READ), RH KB (WRITE) |
+| `finance_manager` | `finance_manager` | USER | /COMPANY, /FINANCE | Company KB (READ), Finance KB (WRITE) |
+| `adminuser` | `adminuser` | ADMIN | /COMPANY | KB Management, no content access |
+
+### Permission Model
+
+| Permission | Description |
+|------------|-------------|
+| **READ** (implicit) | All group members can query the KB via chat |
+| **WRITE** (explicit) | User can add/modify/delete documents in the KB |
+| **READ cross-group** | User can read a KB they're not a member of |
+
+**Key principle**: ADMIN role manages access but cannot read document content.
+
+## Multi-KB Architecture
+
+The application supports multiple knowledge bases, each linked to a Keycloak group.
+
+### How it works
+
+1. Each KB is owned by a Keycloak group (e.g., `/RH` owns "RH KB")
+2. Group members automatically have READ access to their KB
+3. ADMIN grants WRITE permission to specific users
+4. Users can receive cross-group READ access to other KBs
+5. Chat searches all accessible KBs and cites sources in responses
+
+### Knowledge Base Management
+
+**For Users (Knowledge Base page):**
+- View all accessible KBs with READ/WRITE badges
+- Add documents to KBs with WRITE permission
+- Delete documents from KBs with WRITE permission
+
+**For Admins (KB Management page):**
+- View all KBs with document counts
+- Manage permissions (grant/revoke WRITE, add cross-group READ)
+- Cannot access document content
+
+### Creating a new KB
+
+1. ADMIN creates a new group in Keycloak (e.g., `/LEGAL`)
+2. ADMIN assigns users to the group
+3. ADMIN grants WRITE permission to a user (e.g., legal_manager)
+4. User with WRITE creates the KB via the Knowledge Base UI
+5. Other group members can now query the KB
 
 ## Session Memory
 
@@ -105,42 +158,60 @@ The agent remembers conversation history across page refreshes and server restar
 
 ## RAG (Retrieval-Augmented Generation)
 
-The agent can search a knowledge base to answer questions with relevant context.
+The agent searches accessible knowledge bases to answer questions with relevant context.
 
 ### How it works
 
-1. RAG Supervisors add documents via the Knowledge Base UI
+1. Users with WRITE permission add documents via the Knowledge Base UI
 2. Content is chunked and embedded using OpenAI `text-embedding-3-small`
 3. Embeddings are stored in PostgreSQL with PgVector
-4. On each query, relevant documents are retrieved and added to context
-5. The agent uses this context to provide informed answers
+4. On each query, relevant documents are retrieved from accessible KBs
+5. The agent uses this context and **cites the source documents** in responses
 
 ### Knowledge API
 ```bash
-# Add content to knowledge base
-curl -X POST http://localhost:8000/api/knowledge/add \
+# List accessible KBs
+curl -X GET http://localhost:8000/api/kb \
+  -H "X-User-ID: user-id" \
+  -H "X-User-Groups: /COMPANY,/RH" \
+  -H "X-User-Roles: USER"
+
+# Add document to a KB (requires WRITE)
+curl -X POST http://localhost:8000/api/kb/{kb_id}/documents \
   -H "Content-Type: application/json" \
+  -H "X-User-ID: user-id" \
+  -H "X-User-Groups: /COMPANY,/RH" \
+  -H "X-User-Roles: USER" \
   -d '{"content": "Your text content here", "name": "document_name"}'
 
-# Search knowledge base
-curl -X POST http://localhost:8000/api/knowledge/search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Your search query", "limit": 5}'
+# List documents in a KB (requires READ)
+curl -X GET http://localhost:8000/api/kb/{kb_id}/documents \
+  -H "X-User-ID: user-id" \
+  -H "X-User-Groups: /COMPANY,/RH" \
+  -H "X-User-Roles: USER"
 ```
 
 ### Requirements
 
 RAG requires OpenAI API key for embeddings (even when using other providers for chat).
 
-## Administration Dashboard
+## Administration
 
-Admins can monitor system health and usage through the Administration page:
+### Dashboard (`/admin`)
 
 - **System Health**: Database connection status, AI provider configuration
 - **Statistics**: Total sessions, knowledge documents count, environment info
 - **Recent Sessions**: View latest chat sessions with message counts
 
-Access the dashboard by signing in with `adminuser` / `adminuser` and clicking "Administration" in the sidebar.
+### KB Management (`/admin/knowledge-bases`)
+
+- View all knowledge bases with document counts
+- Manage permissions per KB:
+  - Grant WRITE permission to users
+  - Grant cross-group READ access
+  - Remove permissions
+
+Access by signing in with `adminuser` / `adminuser`.
 
 ## UI Features
 
@@ -156,14 +227,14 @@ The application supports light, dark, and system themes. Toggle via the sun/moon
 
 ## Database
 
-### Tables (auto-created by Agno)
+### Tables
 
 | Table | Purpose |
 |-------|---------|
 | `app.agent_sessions` | Session data and conversation runs |
+| `app.knowledge_bases` | KB metadata (name, slug, group) |
 | `app.knowledge_embeddings` | RAG document embeddings (PgVector) |
-| `app.agno_memories` | User memories (future) |
-| `app.agno_knowledge` | Knowledge metadata |
+| `app.knowledge_base_permissions` | WRITE and cross-group READ permissions |
 
 ### Default Credentials (dev/staging)
 
@@ -225,11 +296,14 @@ Access Keycloak admin at `http://localhost:8080` with:
 - [x] Authentication (Keycloak + NextAuth.js)
 - [x] Session Memory (PostgreSQL)
 - [x] RAG (Retrieval-Augmented Generation with PgVector)
-- [x] Role-based Access Control (USER, RAG_SUPERVISOR, ADMIN)
+- [x] Multi-KB with group-based access control
 - [x] Modern UI with shadcn/ui
 - [x] Dark/Light theme support
 - [x] Admin dashboard (stats, health monitoring)
+- [x] KB Management (permissions, WRITE/READ control)
+- [x] Source citations in chat responses
 - [ ] Admin user management (CRUD users, assign roles)
+- [ ] KB selector in chat (filter by specific KB)
 - [ ] User Memory (persistent user preferences)
 - [ ] Infrastructure as Code (OpenTofu for AWS/GCP/Azure)
 - [ ] Test suite (frontend, backend, infrastructure)
