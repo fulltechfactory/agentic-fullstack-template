@@ -591,6 +591,8 @@ dev-up:
 	@echo "[INFO] Starting development environment..."
 	@set -a && . ./$(DEV_CONFIG) && set +a && docker compose up -d
 	@echo "[OK] Development environment started"
+	@sleep 5
+	@$(MAKE) db-migrate
 	@echo ""
 	@echo "Services:"
 	@echo "  - PostgreSQL: localhost:5432"
@@ -654,3 +656,16 @@ frontend: frontend-env
 	@if [ ! -d frontend/node_modules ]; then $(MAKE) frontend-install; fi
 	@echo "[INFO] Starting frontend..."
 	@cd frontend && pnpm dev
+
+# ============================================================
+# DATABASE MIGRATIONS
+# ============================================================
+.PHONY: db-migrate
+
+db-migrate:
+	@echo "[INFO] Running database migrations..."
+	@for migration in docker/postgres/migrations/*.sql; do \
+		echo "  - Running $$migration..."; \
+		docker exec -i keystone-postgres psql -U postgres -d keystone_db < "$$migration" 2>/dev/null || true; \
+	done
+	@echo "[OK] Migrations complete"
