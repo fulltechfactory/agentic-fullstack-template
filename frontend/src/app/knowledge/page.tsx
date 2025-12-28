@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -14,11 +14,13 @@ import {
   RefreshCw,
   Plus,
   Trash2,
-  ChevronDown,
-  ChevronUp,
   Send,
   Eye,
   Edit,
+  Upload,
+  File,
+  FileCode,
+  X,
 } from "lucide-react";
 
 interface KnowledgeBase {
@@ -39,6 +41,14 @@ interface Document {
   created_at: string;
 }
 
+const FILE_CATEGORIES = {
+  documents: ['.pdf', '.docx'],
+  text: ['.txt', '.md'],
+  code: ['.py', '.js', '.ts', '.tsx', '.jsx', '.c', '.cpp', '.h', '.rs', '.go', '.java', '.html', '.css', '.json', '.yaml', '.sql', '.sh'],
+};
+
+const ALL_EXTENSIONS = [...FILE_CATEGORIES.documents, ...FILE_CATEGORIES.text, ...FILE_CATEGORIES.code];
+
 export default function KnowledgePage() {
   const { data: session, status } = useSession();
   const [kbs, setKbs] = useState<KnowledgeBase[]>([]);
@@ -48,11 +58,18 @@ export default function KnowledgePage() {
   const [docsLoading, setDocsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Add document form
+  // Add document form (text)
   const [showAddForm, setShowAddForm] = useState(false);
   const [newDocName, setNewDocName] = useState("");
   const [newDocContent, setNewDocContent] = useState("");
   const [adding, setAdding] = useState(false);
+
+  // File upload
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchKbs = async () => {
     setLoading(true);
@@ -96,6 +113,8 @@ export default function KnowledgePage() {
   const selectKb = async (kb: KnowledgeBase) => {
     setSelectedKb(kb);
     setShowAddForm(false);
+    setShowUploadForm(false);
+    setSelectedFile(null);
     await fetchDocuments(kb.id);
   };
 
@@ -118,7 +137,6 @@ export default function KnowledgePage() {
         setNewDocContent("");
         setShowAddForm(false);
         await fetchDocuments(selectedKb.id);
-        // Refresh KB list to update document count
         await fetchKbs();
       } else {
         const err = await res.json();
@@ -128,6 +146,35 @@ export default function KnowledgePage() {
       alert("Network error");
     } finally {
       setAdding(false);
+    }
+  };
+
+  const uploadFile = async () => {
+    if (!selectedKb || !selectedFile) return;
+    
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      
+      const res = await fetch(`/api/kb/${selectedKb.id}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (res.ok) {
+        setSelectedFile(null);
+        setShowUploadForm(false);
+        await fetchDocuments(selectedKb.id);
+        await fetchKbs();
+      } else {
+        const err = await res.json();
+        alert(err.detail || "Failed to upload file");
+      }
+    } catch (e) {
+      alert("Network error");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -150,6 +197,46 @@ export default function KnowledgePage() {
     } catch (e) {
       alert("Network error");
     }
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (ALL_EXTENSIONS.includes(ext)) {
+        setSelectedFile(file);
+      } else {
+        alert(`Unsupported file type: ${ext}`);
+      }
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const getFileIcon = (filename: string) => {
+    const ext = '.' + filename.split('.').pop()?.toLowerCase();
+    if (FILE_CATEGORIES.code.includes(ext)) {
+      return <FileCode className="h-4 w-4" />;
+    }
+    return <FileText className="h-4 w-4" />;
   };
 
   useEffect(() => {
@@ -260,17 +347,105 @@ export default function KnowledgePage() {
                         Documents in {selectedKb.name}
                       </h2>
                       {selectedKb.permission === "WRITE" && (
-                        <Button
-                          size="sm"
-                          onClick={() => setShowAddForm(!showAddForm)}
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Add Document
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => { setShowUploadForm(!showUploadForm); setShowAddForm(false); }}
+                          >
+                            <Upload className="h-4 w-4 mr-1" />
+                            Upload File
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => { setShowAddForm(!showAddForm); setShowUploadForm(false); }}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add Text
+                          </Button>
+                        </div>
                       )}
                     </div>
 
-                    {/* Add Document Form */}
+                    {/* Upload File Form */}
+                    {showUploadForm && selectedKb.permission === "WRITE" && (
+                      <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
+                        <div
+                          className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                            dragActive ? "border-primary bg-primary/10" : "border-muted-foreground/25"
+                          }`}
+                          onDragEnter={handleDrag}
+                          onDragLeave={handleDrag}
+                          onDragOver={handleDrag}
+                          onDrop={handleDrop}
+                        >
+                          {selectedFile ? (
+                            <div className="flex items-center justify-center gap-2">
+                              {getFileIcon(selectedFile.name)}
+                              <span className="font-medium">{selectedFile.name}</span>
+                              <span className="text-sm text-muted-foreground">
+                                ({(selectedFile.size / 1024).toFixed(1)} KB)
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setSelectedFile(null)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                              <p className="text-sm text-muted-foreground mb-2">
+                                Drag & drop a file here, or click to select
+                              </p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => fileInputRef.current?.click()}
+                              >
+                                Select File
+                              </Button>
+                              <input
+                                ref={fileInputRef}
+                                type="file"
+                                className="hidden"
+                                accept={ALL_EXTENSIONS.join(",")}
+                                onChange={handleFileSelect}
+                              />
+                              <p className="text-xs text-muted-foreground mt-3">
+                                Supported: PDF, Word, Markdown, Text, Code files (max 10MB)
+                              </p>
+                            </>
+                          )}
+                        </div>
+                        
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => { setShowUploadForm(false); setSelectedFile(null); }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={uploadFile}
+                            disabled={uploading || !selectedFile}
+                          >
+                            {uploading ? (
+                              <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                            ) : (
+                              <Upload className="h-4 w-4 mr-1" />
+                            )}
+                            Upload
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Add Text Form */}
                     {showAddForm && selectedKb.permission === "WRITE" && (
                       <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
                         <Input
@@ -319,7 +494,20 @@ export default function KnowledgePage() {
                           <div key={doc.id} className="p-4 border rounded-lg bg-card">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
-                                <h4 className="font-medium">{doc.name || "Untitled"}</h4>
+                                <div className="flex items-center gap-2">
+                                  {getFileIcon(doc.name || "text.txt")}
+                                  <h4 className="font-medium">{doc.name || "Untitled"}</h4>
+                                  {doc.metadata?.category && (
+                                    <span className="text-xs px-2 py-0.5 rounded bg-muted">
+                                      {doc.metadata.category as string}
+                                    </span>
+                                  )}
+                                  {doc.metadata?.language && (
+                                    <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                      {doc.metadata.language as string}
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
                                   {doc.content}
                                 </p>
