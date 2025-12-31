@@ -70,7 +70,6 @@ check_config_value .dev-config "DB_APP_USER" "appuser"
 check_config_value .dev-config "DB_KEYCLOAK_HOST" "postgres"
 check_config_value .dev-config "DB_KEYCLOAK_SCHEMA" "keycloak"
 check_config_value .dev-config "KEYCLOAK_ADMIN" "admin"
-check_config_value .dev-config "KEYCLOAK_TEST_USER" "testuser"
 
 log_test "setup-dev with Ollama (local)"
 cleanup
@@ -117,7 +116,6 @@ check_config_value .staging-config "DB_APP_HOST" "postgres"
 check_config_value .staging-config "DB_APP_SCHEMA" "app"
 check_config_value .staging-config "DB_KEYCLOAK_SCHEMA" "keycloak"
 check_config_value .staging-config "KEYCLOAK_ADMIN" "admin"
-check_config_value .staging-config "KEYCLOAK_TEST_USER" "testuser"
 
 log_test "setup-staging with GCP + Anthropic"
 cleanup
@@ -135,69 +133,96 @@ check_config_value .staging-config "AI_PROVIDER" "ollama"
 # DEPLOY (PROD) TESTS
 # ==============================================================================
 
-log_test "setup-deploy with full config (same DB host)"
+log_test "setup-deploy with VM + Storage (AWS)"
 cleanup
 make setup-deploy \
     CLOUD_PROVIDER=aws \
+    INFRA_TYPE=vm-storage \
     AI_PROVIDER=openai \
     AI_API_KEY=sk-prod-key \
     POSTGRES_PASSWORD=super-secret-pg \
-    DB_APP_HOST=postgres \
-    DB_APP_PORT=5432 \
-    DB_APP_NAME=keystone_db \
-    DB_APP_SCHEMA=app \
-    DB_APP_USER=app_prod \
     DB_APP_PASSWORD=app-secret \
-    DB_MIGRATION_USER=mig_prod \
     DB_MIGRATION_PASSWORD=mig-secret \
-    DB_KEYCLOAK_HOST=postgres \
-    DB_KEYCLOAK_PORT=5432 \
-    DB_KEYCLOAK_NAME=keystone_db \
-    DB_KEYCLOAK_SCHEMA=keycloak \
-    DB_KEYCLOAK_USER=kc_prod \
     DB_KEYCLOAK_PASSWORD=kc-secret \
-    KEYCLOAK_ADMIN=admin_prod \
+    KEYSTONE_ADMIN=adminuser \
+    KEYSTONE_ADMIN_PASSWORD=ks-secret \
+    KEYCLOAK_ADMIN=admin \
     KEYCLOAK_ADMIN_PASSWORD=admin-secret \
     > /dev/null 2>&1
 check_config_value .deploy-config "ENVIRONMENT" "prod"
 check_config_value .deploy-config "CLOUD_PROVIDER" "aws"
-check_config_value .deploy-config "DB_APP_HOST" "postgres"
-check_config_value .deploy-config "DB_APP_SCHEMA" "app"
-check_config_value .deploy-config "DB_APP_USER" "app_prod"
-check_config_value .deploy-config "DB_KEYCLOAK_HOST" "postgres"
-check_config_value .deploy-config "DB_KEYCLOAK_SCHEMA" "keycloak"
-check_config_value .deploy-config "KEYCLOAK_ADMIN" "admin_prod"
+check_config_value .deploy-config "INFRA_TYPE" "vm-storage"
+check_config_value .deploy-config "AI_PROVIDER" "openai"
+check_config_value .deploy-config "POSTGRES_PASSWORD" "super-secret-pg"
+check_config_value .deploy-config "DB_APP_PASSWORD" "app-secret"
+check_config_value .deploy-config "DB_MIGRATION_PASSWORD" "mig-secret"
+check_config_value .deploy-config "DB_KEYCLOAK_PASSWORD" "kc-secret"
+check_config_value .deploy-config "KEYSTONE_ADMIN" "adminuser"
+check_config_value .deploy-config "KEYSTONE_ADMIN_PASSWORD" "ks-secret"
+check_config_value .deploy-config "KEYCLOAK_ADMIN" "admin"
+check_config_value .deploy-config "KEYCLOAK_ADMIN_PASSWORD" "admin-secret"
 
-log_test "setup-deploy with separate DB hosts (future-proof)"
+log_test "setup-deploy with VM + Managed DB (GCP)"
 cleanup
 make setup-deploy \
     CLOUD_PROVIDER=gcp \
+    INFRA_TYPE=vm-managed-db \
     AI_PROVIDER=gemini \
     AI_API_KEY=gemini-prod \
     POSTGRES_PASSWORD=pg123 \
-    DB_APP_HOST=app-db.internal \
-    DB_APP_PORT=5432 \
-    DB_APP_NAME=app_db \
-    DB_APP_SCHEMA=public \
-    DB_APP_USER=appuser \
     DB_APP_PASSWORD=app123 \
-    DB_MIGRATION_USER=migration \
     DB_MIGRATION_PASSWORD=mig123 \
-    DB_KEYCLOAK_HOST=keycloak-db.internal \
-    DB_KEYCLOAK_PORT=5432 \
-    DB_KEYCLOAK_NAME=keycloak_db \
-    DB_KEYCLOAK_SCHEMA=public \
-    DB_KEYCLOAK_USER=keycloak \
     DB_KEYCLOAK_PASSWORD=kc123 \
+    KEYSTONE_ADMIN=admin \
+    KEYSTONE_ADMIN_PASSWORD=ks123 \
     KEYCLOAK_ADMIN=kcadmin \
     KEYCLOAK_ADMIN_PASSWORD=kcpass \
     > /dev/null 2>&1
 check_config_value .deploy-config "CLOUD_PROVIDER" "gcp"
-check_config_value .deploy-config "DB_APP_HOST" "app-db.internal"
-check_config_value .deploy-config "DB_APP_NAME" "app_db"
-check_config_value .deploy-config "DB_APP_SCHEMA" "public"
-check_config_value .deploy-config "DB_KEYCLOAK_HOST" "keycloak-db.internal"
-check_config_value .deploy-config "DB_KEYCLOAK_NAME" "keycloak_db"
+check_config_value .deploy-config "INFRA_TYPE" "vm-managed-db"
+check_config_value .deploy-config "AI_PROVIDER" "gemini"
+check_config_value .deploy-config "GOOGLE_API_KEY" "gemini-prod"
+
+log_test "setup-deploy with Kubernetes (Azure)"
+cleanup
+make setup-deploy \
+    CLOUD_PROVIDER=azure \
+    INFRA_TYPE=k8s \
+    AI_PROVIDER=anthropic \
+    AI_API_KEY=sk-ant-prod \
+    POSTGRES_PASSWORD=pg-k8s \
+    DB_APP_PASSWORD=app-k8s \
+    DB_MIGRATION_PASSWORD=mig-k8s \
+    DB_KEYCLOAK_PASSWORD=kc-k8s \
+    KEYSTONE_ADMIN=admin \
+    KEYSTONE_ADMIN_PASSWORD=ks-k8s \
+    KEYCLOAK_ADMIN=admin \
+    KEYCLOAK_ADMIN_PASSWORD=admin-k8s \
+    > /dev/null 2>&1
+check_config_value .deploy-config "CLOUD_PROVIDER" "azure"
+check_config_value .deploy-config "INFRA_TYPE" "k8s"
+check_config_value .deploy-config "AI_PROVIDER" "anthropic"
+check_config_value .deploy-config "ANTHROPIC_API_KEY" "sk-ant-prod"
+
+log_test "setup-deploy with Scaleway"
+cleanup
+make setup-deploy \
+    CLOUD_PROVIDER=scaleway \
+    INFRA_TYPE=vm-storage \
+    AI_PROVIDER=mistral \
+    AI_API_KEY=mistral-prod \
+    POSTGRES_PASSWORD=pg-scw \
+    DB_APP_PASSWORD=app-scw \
+    DB_MIGRATION_PASSWORD=mig-scw \
+    DB_KEYCLOAK_PASSWORD=kc-scw \
+    KEYSTONE_ADMIN=admin \
+    KEYSTONE_ADMIN_PASSWORD=ks-scw \
+    KEYCLOAK_ADMIN=admin \
+    KEYCLOAK_ADMIN_PASSWORD=admin-scw \
+    > /dev/null 2>&1
+check_config_value .deploy-config "CLOUD_PROVIDER" "scaleway"
+check_config_value .deploy-config "AI_PROVIDER" "mistral"
+check_config_value .deploy-config "MISTRAL_API_KEY" "mistral-prod"
 
 # ==============================================================================
 # ERROR CASE TESTS
@@ -209,6 +234,22 @@ if make setup-dev AI_PROVIDER=invalid_provider > /dev/null 2>&1; then
     log_fail "Should have failed with invalid AI_PROVIDER"
 else
     log_pass "Correctly rejected invalid AI_PROVIDER"
+fi
+
+log_test "setup-deploy with invalid CLOUD_PROVIDER should fail"
+cleanup
+if make setup-deploy CLOUD_PROVIDER=invalid INFRA_TYPE=vm-storage AI_PROVIDER=openai AI_API_KEY=sk-test POSTGRES_PASSWORD=pg DB_APP_PASSWORD=app DB_MIGRATION_PASSWORD=mig DB_KEYCLOAK_PASSWORD=kc KEYSTONE_ADMIN=admin KEYSTONE_ADMIN_PASSWORD=ks KEYCLOAK_ADMIN=admin KEYCLOAK_ADMIN_PASSWORD=kc > /dev/null 2>&1; then
+    log_fail "Should have failed with invalid CLOUD_PROVIDER"
+else
+    log_pass "Correctly rejected invalid CLOUD_PROVIDER"
+fi
+
+log_test "setup-deploy with invalid INFRA_TYPE should fail"
+cleanup
+if make setup-deploy CLOUD_PROVIDER=aws INFRA_TYPE=invalid AI_PROVIDER=openai AI_API_KEY=sk-test POSTGRES_PASSWORD=pg DB_APP_PASSWORD=app DB_MIGRATION_PASSWORD=mig DB_KEYCLOAK_PASSWORD=kc KEYSTONE_ADMIN=admin KEYSTONE_ADMIN_PASSWORD=ks KEYCLOAK_ADMIN=admin KEYCLOAK_ADMIN_PASSWORD=kc > /dev/null 2>&1; then
+    log_fail "Should have failed with invalid INFRA_TYPE"
+else
+    log_pass "Correctly rejected invalid INFRA_TYPE"
 fi
 
 # ==============================================================================

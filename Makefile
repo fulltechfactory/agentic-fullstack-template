@@ -348,188 +348,171 @@ setup-staging:
 # SETUP DEPLOY (PROD) - Cloud VM, manual credentials
 # ============================================================
 setup-deploy:
-	@if [ -z "$(CLOUD_PROVIDER)" ] || [ -z "$(AI_PROVIDER)" ] || [ -z "$(POSTGRES_PASSWORD)" ]; then \
+	@if [ -z "$(CLOUD_PROVIDER)" ]; then \
 		echo "╔════════════════════════════════════════╗"; \
 		echo "║      Production Setup (Cloud)          ║"; \
 		echo "╚════════════════════════════════════════╝"; \
 		echo ""; \
-		if [ -z "$(CLOUD_PROVIDER)" ]; then \
-			echo "┌─ Cloud Provider ─────────────────────────"; \
-			echo "│  1) AWS"; \
-			echo "│  2) GCP"; \
-			echo "│  3) Azure"; \
-			echo "└──────────────────────────────────────────"; \
-			read -p "Enter choice [1-3]: " cloud_choice; \
-			case $$cloud_choice in \
-				1) provider="aws";; \
-				2) provider="gcp";; \
-				3) provider="azure";; \
-				*) echo "[FAIL] Invalid choice"; exit 1;; \
-			esac; \
-		else \
-			provider="$(CLOUD_PROVIDER)"; \
-		fi; \
-		echo ""; \
-		if [ -z "$(AI_PROVIDER)" ]; then \
-			echo "┌─ AI Provider ──────────────────────────────"; \
-			echo "│  1) OpenAI"; \
-			echo "│  2) Gemini (Google)"; \
-			echo "│  3) Anthropic"; \
-			echo "│  4) Mistral"; \
-			echo "│  5) Ollama (local)"; \
-			echo "│  6) LM Studio (local)"; \
-			echo "└──────────────────────────────────────────"; \
-			read -p "Enter choice [1-6]: " ai_choice; \
-			case $$ai_choice in \
-				1) ai_provider="openai"; ai_key_name="OPENAI_API_KEY";; \
-				2) ai_provider="gemini"; ai_key_name="GOOGLE_API_KEY";; \
-				3) ai_provider="anthropic"; ai_key_name="ANTHROPIC_API_KEY";; \
-				4) ai_provider="mistral"; ai_key_name="MISTRAL_API_KEY";; \
-				5) ai_provider="ollama"; ai_key_name="";; \
-				6) ai_provider="lmstudio"; ai_key_name="";; \
-				*) echo "[FAIL] Invalid choice"; exit 1;; \
-			esac; \
-			ai_api_key=""; \
-			ai_url=""; \
-			if [ -n "$$ai_key_name" ]; then \
-				echo ""; \
-				read -s -p "Enter $$ai_key_name: " ai_api_key; \
-				echo ""; \
-			else \
-				if [ "$$ai_provider" = "ollama" ]; then \
-					default_url="http://localhost:11434"; \
-				else \
-					default_url="http://localhost:1234"; \
-				fi; \
-				echo ""; \
-				read -p "Enter $$ai_provider URL [$$default_url]: " ai_url; \
-				ai_url=$${ai_url:-$$default_url}; \
-			fi; \
-		else \
-			ai_provider="$(AI_PROVIDER)"; \
-			ai_api_key="$(AI_API_KEY)"; \
-			ai_url="$(AI_URL)"; \
-			case $$ai_provider in \
-				openai) ai_key_name="OPENAI_API_KEY";; \
-				gemini) ai_key_name="GOOGLE_API_KEY";; \
-				anthropic) ai_key_name="ANTHROPIC_API_KEY";; \
-				mistral) ai_key_name="MISTRAL_API_KEY";; \
-				ollama|lmstudio) ai_key_name="";; \
-				*) echo "[FAIL] Invalid AI_PROVIDER: $$ai_provider"; exit 1;; \
-			esac; \
-			if [ -z "$$ai_key_name" ] && [ -z "$$ai_url" ]; then \
-				if [ "$$ai_provider" = "ollama" ]; then \
-					ai_url="http://localhost:11434"; \
-				else \
-					ai_url="http://localhost:1234"; \
-				fi; \
-			fi; \
-		fi; \
-		echo ""; \
-		if [ -z "$(POSTGRES_PASSWORD)" ]; then \
-			echo "┌─ Database Credentials (Production) ────────"; \
-			echo "└──────────────────────────────────────────"; \
-			echo ""; \
-			echo "-- PostgreSQL Superuser --"; \
-			read -s -p "postgres password: " pg_password; echo ""; \
-			echo ""; \
-			echo "-- Application Database --"; \
-			read -p "app db host [postgres]: " db_app_host; \
-			db_app_host=$${db_app_host:-postgres}; \
-			read -p "app db port [5432]: " db_app_port; \
-			db_app_port=$${db_app_port:-5432}; \
-			read -p "app db name [keystone_db]: " db_app_name; \
-			db_app_name=$${db_app_name:-keystone_db}; \
-			read -p "app db schema [app]: " db_app_schema; \
-			db_app_schema=$${db_app_schema:-app}; \
-			read -p "app username [appuser]: " app_user; \
-			app_user=$${app_user:-appuser}; \
-			read -s -p "app password: " app_password; echo ""; \
-			echo ""; \
-			echo "-- Migration User --"; \
-			read -p "migration username [migration]: " mig_user; \
-			mig_user=$${mig_user:-migration}; \
-			read -s -p "migration password: " mig_password; echo ""; \
-			echo ""; \
-			echo "-- Keycloak Database --"; \
-			read -p "keycloak db host [postgres]: " db_kc_host; \
-			db_kc_host=$${db_kc_host:-postgres}; \
-			read -p "keycloak db port [5432]: " db_kc_port; \
-			db_kc_port=$${db_kc_port:-5432}; \
-			read -p "keycloak db name [keystone_db]: " db_kc_name; \
-			db_kc_name=$${db_kc_name:-keystone_db}; \
-			read -p "keycloak db schema [keycloak]: " db_kc_schema; \
-			db_kc_schema=$${db_kc_schema:-keycloak}; \
-			read -p "keycloak db username [keycloak]: " kc_db_user; \
-			kc_db_user=$${kc_db_user:-keycloak}; \
-			read -s -p "keycloak db password: " kc_db_password; echo ""; \
-			echo ""; \
-			echo "┌─ Keycloak Admin (Production) ──────────────"; \
-			echo "└──────────────────────────────────────────"; \
-			read -p "Keycloak admin username: " kc_admin; \
-			read -s -p "Keycloak admin password: " kc_admin_password; echo ""; \
-		else \
-			pg_password="$(POSTGRES_PASSWORD)"; \
-			db_app_host="$(DB_APP_HOST)"; \
-			db_app_port="$(DB_APP_PORT)"; \
-			db_app_name="$(DB_APP_NAME)"; \
-			db_app_schema="$(DB_APP_SCHEMA)"; \
-			app_user="$(DB_APP_USER)"; \
-			app_password="$(DB_APP_PASSWORD)"; \
-			mig_user="$(DB_MIGRATION_USER)"; \
-			mig_password="$(DB_MIGRATION_PASSWORD)"; \
-			db_kc_host="$(DB_KEYCLOAK_HOST)"; \
-			db_kc_port="$(DB_KEYCLOAK_PORT)"; \
-			db_kc_name="$(DB_KEYCLOAK_NAME)"; \
-			db_kc_schema="$(DB_KEYCLOAK_SCHEMA)"; \
-			kc_db_user="$(DB_KEYCLOAK_USER)"; \
-			kc_db_password="$(DB_KEYCLOAK_PASSWORD)"; \
-			kc_admin="$(KEYCLOAK_ADMIN)"; \
-			kc_admin_password="$(KEYCLOAK_ADMIN_PASSWORD)"; \
-		fi; \
+		echo "┌─ Cloud Provider ─────────────────────────"; \
+		echo "│  1) AWS"; \
+		echo "│  2) GCP"; \
+		echo "│  3) Azure"; \
+		echo "│  4) Scaleway"; \
+		echo "└──────────────────────────────────────────"; \
+		read -p "Enter choice [1-4]: " cloud_choice; \
+		case $$cloud_choice in \
+			1) provider="aws";; \
+			2) provider="gcp";; \
+			3) provider="azure";; \
+			4) provider="scaleway";; \
+			*) echo "[FAIL] Invalid choice"; exit 1;; \
+		esac; \
 	else \
 		provider="$(CLOUD_PROVIDER)"; \
+		case $$provider in \
+			aws|gcp|azure|scaleway) ;; \
+			*) echo "[FAIL] Invalid CLOUD_PROVIDER: $$provider"; exit 1;; \
+		esac; \
+	fi; \
+	\
+	if [ -z "$(INFRA_TYPE)" ]; then \
+		echo ""; \
+		echo "┌─ Infrastructure Type ───────────────────"; \
+		echo "│  1) VM + Attached Storage (PostgreSQL on VM)"; \
+		echo "│  2) VM + Managed Database (Cloud SQL/RDS)"; \
+		echo "│  3) Kubernetes (K8S)"; \
+		echo "└──────────────────────────────────────────"; \
+		read -p "Enter choice [1-3]: " infra_choice; \
+		case $$infra_choice in \
+			1) infra_type="vm-storage";; \
+			2) infra_type="vm-managed-db";; \
+			3) infra_type="k8s";; \
+			*) echo "[FAIL] Invalid choice"; exit 1;; \
+		esac; \
+	else \
+		infra_type="$(INFRA_TYPE)"; \
+		case $$infra_type in \
+			vm-storage|vm-managed-db|k8s) ;; \
+			*) echo "[FAIL] Invalid INFRA_TYPE: $$infra_type"; exit 1;; \
+		esac; \
+	fi; \
+	\
+	if [ -z "$(AI_PROVIDER)" ]; then \
+		echo ""; \
+		echo "┌─ AI Provider ──────────────────────────────"; \
+		echo "│  1) OpenAI"; \
+		echo "│  2) Anthropic"; \
+		echo "│  3) Google Gemini"; \
+		echo "│  4) Mistral"; \
+		echo "│  5) Ollama (self-hosted)"; \
+		echo "│  6) LM Studio (self-hosted)"; \
+		echo "└──────────────────────────────────────────"; \
+		read -p "Enter choice [1-6]: " ai_choice; \
+		case $$ai_choice in \
+			1) ai_provider="openai"; ai_key_name="OPENAI_API_KEY";; \
+			2) ai_provider="anthropic"; ai_key_name="ANTHROPIC_API_KEY";; \
+			3) ai_provider="gemini"; ai_key_name="GOOGLE_API_KEY";; \
+			4) ai_provider="mistral"; ai_key_name="MISTRAL_API_KEY";; \
+			5) ai_provider="ollama"; ai_key_name="";; \
+			6) ai_provider="lmstudio"; ai_key_name="";; \
+			*) echo "[FAIL] Invalid choice"; exit 1;; \
+		esac; \
+		ai_api_key=""; \
+		ai_url=""; \
+		if [ -n "$$ai_key_name" ]; then \
+			echo ""; \
+			read -s -p "Enter $$ai_key_name: " ai_api_key; \
+			echo ""; \
+		else \
+			echo ""; \
+			read -p "Enter $$ai_provider URL: " ai_url; \
+		fi; \
+	else \
 		ai_provider="$(AI_PROVIDER)"; \
 		ai_api_key="$(AI_API_KEY)"; \
 		ai_url="$(AI_URL)"; \
-		pg_password="$(POSTGRES_PASSWORD)"; \
-		db_app_host="$(DB_APP_HOST)"; \
-		db_app_port="$(DB_APP_PORT)"; \
-		db_app_name="$(DB_APP_NAME)"; \
-		db_app_schema="$(DB_APP_SCHEMA)"; \
-		app_user="$(DB_APP_USER)"; \
-		app_password="$(DB_APP_PASSWORD)"; \
-		mig_user="$(DB_MIGRATION_USER)"; \
-		mig_password="$(DB_MIGRATION_PASSWORD)"; \
-		db_kc_host="$(DB_KEYCLOAK_HOST)"; \
-		db_kc_port="$(DB_KEYCLOAK_PORT)"; \
-		db_kc_name="$(DB_KEYCLOAK_NAME)"; \
-		db_kc_schema="$(DB_KEYCLOAK_SCHEMA)"; \
-		kc_db_user="$(DB_KEYCLOAK_USER)"; \
-		kc_db_password="$(DB_KEYCLOAK_PASSWORD)"; \
-		kc_admin="$(KEYCLOAK_ADMIN)"; \
-		kc_admin_password="$(KEYCLOAK_ADMIN_PASSWORD)"; \
 		case $$ai_provider in \
 			openai) ai_key_name="OPENAI_API_KEY";; \
-			gemini) ai_key_name="GOOGLE_API_KEY";; \
 			anthropic) ai_key_name="ANTHROPIC_API_KEY";; \
+			gemini) ai_key_name="GOOGLE_API_KEY";; \
 			mistral) ai_key_name="MISTRAL_API_KEY";; \
 			ollama|lmstudio) ai_key_name="";; \
 			*) echo "[FAIL] Invalid AI_PROVIDER: $$ai_provider"; exit 1;; \
 		esac; \
-		if [ -z "$$ai_key_name" ] && [ -z "$$ai_url" ]; then \
-			if [ "$$ai_provider" = "ollama" ]; then \
-				ai_url="http://localhost:11434"; \
-			else \
-				ai_url="http://localhost:1234"; \
-			fi; \
-		fi; \
 	fi; \
 	\
+	echo ""; \
+	echo "┌─ Database Credentials ─────────────────────"; \
+	echo "│  Configure passwords for database users"; \
+	echo "└──────────────────────────────────────────"; \
+	echo ""; \
+	if [ -z "$(POSTGRES_PASSWORD)" ]; then \
+		read -s -p "PostgreSQL superuser password: " pg_password; echo ""; \
+	else \
+		pg_password="$(POSTGRES_PASSWORD)"; \
+	fi; \
+	if [ -z "$(DB_MIGRATION_PASSWORD)" ]; then \
+		read -s -p "Migration user password: " mig_password; echo ""; \
+	else \
+		mig_password="$(DB_MIGRATION_PASSWORD)"; \
+	fi; \
+	if [ -z "$(DB_APP_PASSWORD)" ]; then \
+		read -s -p "App user password: " app_password; echo ""; \
+	else \
+		app_password="$(DB_APP_PASSWORD)"; \
+	fi; \
+	if [ -z "$(DB_KEYCLOAK_PASSWORD)" ]; then \
+		read -s -p "Keycloak DB user password: " kc_db_password; echo ""; \
+	else \
+		kc_db_password="$(DB_KEYCLOAK_PASSWORD)"; \
+	fi; \
+	\
+	db_app_host="$${DB_APP_HOST:-postgres}"; \
+	db_app_port="$${DB_APP_PORT:-5432}"; \
+	db_app_name="$${DB_APP_NAME:-keystone_db}"; \
+	db_app_schema="$${DB_APP_SCHEMA:-app}"; \
+	app_user="$${DB_APP_USER:-appuser}"; \
+	mig_user="$${DB_MIGRATION_USER:-migration}"; \
+	db_kc_host="$${DB_KEYCLOAK_HOST:-postgres}"; \
+	db_kc_port="$${DB_KEYCLOAK_PORT:-5432}"; \
+	db_kc_name="$${DB_KEYCLOAK_NAME:-keystone_db}"; \
+	db_kc_schema="$${DB_KEYCLOAK_SCHEMA:-keycloak}"; \
+	kc_db_user="$${DB_KEYCLOAK_USER:-keycloak}"; \
+	\
+	echo ""; \
+	echo "┌─ Application Credentials ──────────────────"; \
+	echo "│  Configure admin accounts"; \
+	echo "└──────────────────────────────────────────"; \
+	echo ""; \
+	if [ -z "$(KEYSTONE_ADMIN)" ]; then \
+		read -p "Keystone admin username [adminuser]: " ks_admin; \
+		ks_admin=$${ks_admin:-adminuser}; \
+	else \
+		ks_admin="$(KEYSTONE_ADMIN)"; \
+	fi; \
+	if [ -z "$(KEYSTONE_ADMIN_PASSWORD)" ]; then \
+		read -s -p "Keystone admin password: " ks_admin_password; echo ""; \
+	else \
+		ks_admin_password="$(KEYSTONE_ADMIN_PASSWORD)"; \
+	fi; \
+	if [ -z "$(KEYCLOAK_ADMIN)" ]; then \
+		read -p "Keycloak admin username [admin]: " kc_admin; \
+		kc_admin=$${kc_admin:-admin}; \
+	else \
+		kc_admin="$(KEYCLOAK_ADMIN)"; \
+	fi; \
+	if [ -z "$(KEYCLOAK_ADMIN_PASSWORD)" ]; then \
+		read -s -p "Keycloak admin password: " kc_admin_password; echo ""; \
+	else \
+		kc_admin_password="$(KEYCLOAK_ADMIN_PASSWORD)"; \
+	fi; \
+	\
+	echo ""; \
 	echo "# Auto-generated by make setup-deploy" > $(DEPLOY_CONFIG); \
 	echo "" >> $(DEPLOY_CONFIG); \
-	echo "# Cloud & Environment" >> $(DEPLOY_CONFIG); \
+	echo "# Infrastructure" >> $(DEPLOY_CONFIG); \
 	echo "CLOUD_PROVIDER=$$provider" >> $(DEPLOY_CONFIG); \
+	echo "INFRA_TYPE=$$infra_type" >> $(DEPLOY_CONFIG); \
 	echo "ENVIRONMENT=prod" >> $(DEPLOY_CONFIG); \
 	echo "" >> $(DEPLOY_CONFIG); \
 	echo "# AI Provider" >> $(DEPLOY_CONFIG); \
@@ -564,16 +547,27 @@ setup-deploy:
 	echo "DB_KEYCLOAK_USER=$$kc_db_user" >> $(DEPLOY_CONFIG); \
 	echo "DB_KEYCLOAK_PASSWORD=$$kc_db_password" >> $(DEPLOY_CONFIG); \
 	echo "" >> $(DEPLOY_CONFIG); \
+	echo "# Keystone Admin" >> $(DEPLOY_CONFIG); \
+	echo "KEYSTONE_ADMIN=$$ks_admin" >> $(DEPLOY_CONFIG); \
+	echo "KEYSTONE_ADMIN_PASSWORD=$$ks_admin_password" >> $(DEPLOY_CONFIG); \
+	echo "" >> $(DEPLOY_CONFIG); \
 	echo "# Keycloak Admin" >> $(DEPLOY_CONFIG); \
 	echo "KEYCLOAK_ADMIN=$$kc_admin" >> $(DEPLOY_CONFIG); \
 	echo "KEYCLOAK_ADMIN_PASSWORD=$$kc_admin_password" >> $(DEPLOY_CONFIG); \
 	\
 	echo ""; \
-	echo "[OK] Production config saved to $(DEPLOY_CONFIG)"
+	echo "[OK] Production config saved to $(DEPLOY_CONFIG)"; \
+	echo ""; \
+	echo "Configuration summary:"; \
+	echo "  Cloud Provider: $$provider"; \
+	echo "  Infrastructure: $$infra_type"; \
+	echo "  AI Provider: $$ai_provider"; \
+	echo ""; \
+	echo "Next steps:"; \
+	echo "  1. Review $(DEPLOY_CONFIG)"; \
+	echo "  2. Run 'make infra-plan' to preview infrastructure"; \
+	echo "  3. Run 'make infra-apply' to deploy"
 
-# ============================================================
-# TEST SETUP - Automated tests
-# ============================================================
 test-setup:
 	@./scripts/test-setup.sh
 
