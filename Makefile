@@ -708,3 +708,66 @@ db-migrate:
 		docker exec -i keystone-postgres psql -U postgres -d keystone_db < "$$migration" 2>/dev/null || true; \
 	done
 	@echo "[OK] Migrations complete"
+
+# ============================================================
+# INFRASTRUCTURE - OpenTofu commands
+# ============================================================
+
+INFRA_DIR = infra
+
+.PHONY: infra-init infra-plan infra-apply infra-destroy infra-output
+
+infra-init:
+	@if [ ! -f $(DEPLOY_CONFIG) ]; then \
+		echo "[ERROR] Run 'make setup-deploy' first"; \
+		exit 1; \
+	fi
+	@. $(DEPLOY_CONFIG) && \
+	INFRA_PATH="$(INFRA_DIR)/$$CLOUD_PROVIDER/$$INFRA_TYPE" && \
+	if [ ! -d "$$INFRA_PATH" ]; then \
+		echo "[ERROR] Infrastructure not found: $$INFRA_PATH"; \
+		exit 1; \
+	fi && \
+	echo "[INFO] Generating terraform.tfvars..." && \
+	$$INFRA_PATH/generate-tfvars.sh && \
+	echo "[INFO] Initializing OpenTofu in $$INFRA_PATH..." && \
+	cd $$INFRA_PATH && tofu init
+
+infra-plan:
+	@if [ ! -f $(DEPLOY_CONFIG) ]; then \
+		echo "[ERROR] Run 'make setup-deploy' first"; \
+		exit 1; \
+	fi
+	@. $(DEPLOY_CONFIG) && \
+	INFRA_PATH="$(INFRA_DIR)/$$CLOUD_PROVIDER/$$INFRA_TYPE" && \
+	echo "[INFO] Planning infrastructure in $$INFRA_PATH..." && \
+	cd $$INFRA_PATH && tofu plan
+
+infra-apply:
+	@if [ ! -f $(DEPLOY_CONFIG) ]; then \
+		echo "[ERROR] Run 'make setup-deploy' first"; \
+		exit 1; \
+	fi
+	@. $(DEPLOY_CONFIG) && \
+	INFRA_PATH="$(INFRA_DIR)/$$CLOUD_PROVIDER/$$INFRA_TYPE" && \
+	echo "[INFO] Applying infrastructure in $$INFRA_PATH..." && \
+	cd $$INFRA_PATH && tofu apply
+
+infra-destroy:
+	@if [ ! -f $(DEPLOY_CONFIG) ]; then \
+		echo "[ERROR] Run 'make setup-deploy' first"; \
+		exit 1; \
+	fi
+	@. $(DEPLOY_CONFIG) && \
+	INFRA_PATH="$(INFRA_DIR)/$$CLOUD_PROVIDER/$$INFRA_TYPE" && \
+	echo "[WARNING] Destroying infrastructure in $$INFRA_PATH..." && \
+	cd $$INFRA_PATH && tofu destroy
+
+infra-output:
+	@if [ ! -f $(DEPLOY_CONFIG) ]; then \
+		echo "[ERROR] Run 'make setup-deploy' first"; \
+		exit 1; \
+	fi
+	@. $(DEPLOY_CONFIG) && \
+	INFRA_PATH="$(INFRA_DIR)/$$CLOUD_PROVIDER/$$INFRA_TYPE" && \
+	cd $$INFRA_PATH && tofu output

@@ -1,0 +1,53 @@
+# =============================================================================
+# Keystone - AWS VM with Attached Storage
+# Copy this file to terraform.tfvars and fill in your values
+# =============================================================================
+
+# Project
+project_name = "keystone"
+environment  = "prod"
+
+# AWS Region
+aws_region        = "eu-west-3"
+availability_zone = "eu-west-3a"
+
+# Domain
+domain_name = "app.example.com"
+
+# Instance
+instance_type = "t3.medium"
+
+# SSH Key (optional - leave null to use SSM Session Manager)
+key_name = null
+
+# SSH access (optional - leave empty to disable SSH, use SSM instead)
+# allowed_ssh_cidrs = ["YOUR_IP/32"]
+allowed_ssh_cidrs = []
+
+# PostgreSQL data volume size (GB)
+postgres_volume_size = 20
+
+# Elastic IP (optional - leave null to create a new one)
+# elastic_ip_allocation_id = "eipalloc-xxxxxxxxx"
+elastic_ip_allocation_id = null
+
+# =============================================================================
+# Database Credentials (use strong passwords!)
+# =============================================================================
+postgres_password     = "CHANGE_ME_postgres_super_secret"
+db_app_password       = "CHANGE_ME_app_secret"
+db_migration_password = "CHANGE_ME_migration_secret"
+db_keycloak_password  = "CHANGE_ME_keycloak_db_secret"
+
+# =============================================================================
+# Application Credentials
+# =============================================================================
+keystone_admin_password = "CHANGE_ME_keystone_admin"
+keycloak_admin_password = "CHANGE_ME_keycloak_admin"
+
+# =============================================================================
+# AI Provider
+# Options: openai, anthropic, gemini, mistral
+# =============================================================================
+ai_provider = "openai"
+ai_api_key  = "sk-your-openai-api-key"
