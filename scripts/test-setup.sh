@@ -133,11 +133,15 @@ check_config_value .staging-config "AI_PROVIDER" "ollama"
 # DEPLOY (PROD) TESTS
 # ==============================================================================
 
-log_test "setup-deploy with VM + Storage (AWS)"
+log_test "setup-deploy with AWS VM + Attached Storage"
 cleanup
 make setup-deploy \
     CLOUD_PROVIDER=aws \
-    INFRA_TYPE=vm-storage \
+    CLOUD_REGION=eu-west-3 \
+    INFRA_TYPE=vm-attached-storage \
+    DOMAIN_NAME=app.example.com \
+    ELASTIC_IP=1.2.3.4 \
+    ELASTIC_IP_ALLOC_ID=eipalloc-123456 \
     AI_PROVIDER=openai \
     AI_API_KEY=sk-prod-key \
     POSTGRES_PASSWORD=super-secret-pg \
@@ -151,7 +155,11 @@ make setup-deploy \
     > /dev/null 2>&1
 check_config_value .deploy-config "ENVIRONMENT" "prod"
 check_config_value .deploy-config "CLOUD_PROVIDER" "aws"
-check_config_value .deploy-config "INFRA_TYPE" "vm-storage"
+check_config_value .deploy-config "CLOUD_REGION" "eu-west-3"
+check_config_value .deploy-config "INFRA_TYPE" "vm-attached-storage"
+check_config_value .deploy-config "DOMAIN_NAME" "app.example.com"
+check_config_value .deploy-config "ELASTIC_IP" "1.2.3.4"
+check_config_value .deploy-config "ELASTIC_IP_ALLOC_ID" "eipalloc-123456"
 check_config_value .deploy-config "AI_PROVIDER" "openai"
 check_config_value .deploy-config "POSTGRES_PASSWORD" "super-secret-pg"
 check_config_value .deploy-config "DB_APP_PASSWORD" "app-secret"
@@ -162,11 +170,13 @@ check_config_value .deploy-config "KEYSTONE_ADMIN_PASSWORD" "ks-secret"
 check_config_value .deploy-config "KEYCLOAK_ADMIN" "admin"
 check_config_value .deploy-config "KEYCLOAK_ADMIN_PASSWORD" "admin-secret"
 
-log_test "setup-deploy with VM + Managed DB (GCP)"
+log_test "setup-deploy with GCP VM + Managed Postgres"
 cleanup
 make setup-deploy \
     CLOUD_PROVIDER=gcp \
-    INFRA_TYPE=vm-managed-db \
+    CLOUD_REGION=europe-west1 \
+    INFRA_TYPE=vm-managed-postgres \
+    DOMAIN_NAME=gcp.example.com \
     AI_PROVIDER=gemini \
     AI_API_KEY=gemini-prod \
     POSTGRES_PASSWORD=pg123 \
@@ -179,15 +189,19 @@ make setup-deploy \
     KEYCLOAK_ADMIN_PASSWORD=kcpass \
     > /dev/null 2>&1
 check_config_value .deploy-config "CLOUD_PROVIDER" "gcp"
-check_config_value .deploy-config "INFRA_TYPE" "vm-managed-db"
+check_config_value .deploy-config "CLOUD_REGION" "europe-west1"
+check_config_value .deploy-config "INFRA_TYPE" "vm-managed-postgres"
+check_config_value .deploy-config "DOMAIN_NAME" "gcp.example.com"
 check_config_value .deploy-config "AI_PROVIDER" "gemini"
 check_config_value .deploy-config "GOOGLE_API_KEY" "gemini-prod"
 
-log_test "setup-deploy with Kubernetes (Azure)"
+log_test "setup-deploy with Azure Kubernetes"
 cleanup
 make setup-deploy \
     CLOUD_PROVIDER=azure \
-    INFRA_TYPE=k8s \
+    CLOUD_REGION=westeurope \
+    INFRA_TYPE=k8s-managed-postgres \
+    DOMAIN_NAME=azure.example.com \
     AI_PROVIDER=anthropic \
     AI_API_KEY=sk-ant-prod \
     POSTGRES_PASSWORD=pg-k8s \
@@ -200,7 +214,8 @@ make setup-deploy \
     KEYCLOAK_ADMIN_PASSWORD=admin-k8s \
     > /dev/null 2>&1
 check_config_value .deploy-config "CLOUD_PROVIDER" "azure"
-check_config_value .deploy-config "INFRA_TYPE" "k8s"
+check_config_value .deploy-config "CLOUD_REGION" "westeurope"
+check_config_value .deploy-config "INFRA_TYPE" "k8s-managed-postgres"
 check_config_value .deploy-config "AI_PROVIDER" "anthropic"
 check_config_value .deploy-config "ANTHROPIC_API_KEY" "sk-ant-prod"
 
@@ -208,7 +223,9 @@ log_test "setup-deploy with Scaleway"
 cleanup
 make setup-deploy \
     CLOUD_PROVIDER=scaleway \
-    INFRA_TYPE=vm-storage \
+    CLOUD_REGION=fr-par \
+    INFRA_TYPE=vm-attached-storage \
+    DOMAIN_NAME=scw.example.com \
     AI_PROVIDER=mistral \
     AI_API_KEY=mistral-prod \
     POSTGRES_PASSWORD=pg-scw \
@@ -221,6 +238,8 @@ make setup-deploy \
     KEYCLOAK_ADMIN_PASSWORD=admin-scw \
     > /dev/null 2>&1
 check_config_value .deploy-config "CLOUD_PROVIDER" "scaleway"
+check_config_value .deploy-config "CLOUD_REGION" "fr-par"
+check_config_value .deploy-config "DOMAIN_NAME" "scw.example.com"
 check_config_value .deploy-config "AI_PROVIDER" "mistral"
 check_config_value .deploy-config "MISTRAL_API_KEY" "mistral-prod"
 
@@ -238,7 +257,7 @@ fi
 
 log_test "setup-deploy with invalid CLOUD_PROVIDER should fail"
 cleanup
-if make setup-deploy CLOUD_PROVIDER=invalid INFRA_TYPE=vm-storage AI_PROVIDER=openai AI_API_KEY=sk-test POSTGRES_PASSWORD=pg DB_APP_PASSWORD=app DB_MIGRATION_PASSWORD=mig DB_KEYCLOAK_PASSWORD=kc KEYSTONE_ADMIN=admin KEYSTONE_ADMIN_PASSWORD=ks KEYCLOAK_ADMIN=admin KEYCLOAK_ADMIN_PASSWORD=kc > /dev/null 2>&1; then
+if make setup-deploy CLOUD_PROVIDER=invalid INFRA_TYPE=vm-attached-storage AI_PROVIDER=openai AI_API_KEY=sk-test POSTGRES_PASSWORD=pg DB_APP_PASSWORD=app DB_MIGRATION_PASSWORD=mig DB_KEYCLOAK_PASSWORD=kc KEYSTONE_ADMIN=admin KEYSTONE_ADMIN_PASSWORD=ks KEYCLOAK_ADMIN=admin KEYCLOAK_ADMIN_PASSWORD=kc DOMAIN_NAME=test.com CLOUD_REGION=us-east-1 > /dev/null 2>&1; then
     log_fail "Should have failed with invalid CLOUD_PROVIDER"
 else
     log_pass "Correctly rejected invalid CLOUD_PROVIDER"
@@ -246,7 +265,7 @@ fi
 
 log_test "setup-deploy with invalid INFRA_TYPE should fail"
 cleanup
-if make setup-deploy CLOUD_PROVIDER=aws INFRA_TYPE=invalid AI_PROVIDER=openai AI_API_KEY=sk-test POSTGRES_PASSWORD=pg DB_APP_PASSWORD=app DB_MIGRATION_PASSWORD=mig DB_KEYCLOAK_PASSWORD=kc KEYSTONE_ADMIN=admin KEYSTONE_ADMIN_PASSWORD=ks KEYCLOAK_ADMIN=admin KEYCLOAK_ADMIN_PASSWORD=kc > /dev/null 2>&1; then
+if make setup-deploy CLOUD_PROVIDER=aws INFRA_TYPE=invalid AI_PROVIDER=openai AI_API_KEY=sk-test POSTGRES_PASSWORD=pg DB_APP_PASSWORD=app DB_MIGRATION_PASSWORD=mig DB_KEYCLOAK_PASSWORD=kc KEYSTONE_ADMIN=admin KEYSTONE_ADMIN_PASSWORD=ks KEYCLOAK_ADMIN=admin KEYCLOAK_ADMIN_PASSWORD=kc DOMAIN_NAME=test.com CLOUD_REGION=us-east-1 > /dev/null 2>&1; then
     log_fail "Should have failed with invalid INFRA_TYPE"
 else
     log_pass "Correctly rejected invalid INFRA_TYPE"

@@ -384,17 +384,48 @@ setup-deploy:
 		echo "└──────────────────────────────────────────"; \
 		read -p "Enter choice [1-3]: " infra_choice; \
 		case $$infra_choice in \
-			1) infra_type="vm-storage";; \
-			2) infra_type="vm-managed-db";; \
-			3) infra_type="k8s";; \
+			1) infra_type="vm-attached-storage";; \
+			2) infra_type="vm-managed-postgres";; \
+			3) infra_type="k8s-managed-postgres";; \
 			*) echo "[FAIL] Invalid choice"; exit 1;; \
 		esac; \
 	else \
 		infra_type="$(INFRA_TYPE)"; \
 		case $$infra_type in \
-			vm-storage|vm-managed-db|k8s) ;; \
+			vm-attached-storage|vm-managed-postgres|k8s-managed-postgres) ;; \
 			*) echo "[FAIL] Invalid INFRA_TYPE: $$infra_type"; exit 1;; \
 		esac; \
+	fi; \
+	\
+	echo ""; \
+	echo "┌─ Infrastructure Settings ──────────────────"; \
+	echo "└──────────────────────────────────────────"; \
+	if [ -z "$(CLOUD_REGION)" ]; then \
+		case $$provider in \
+			aws) default_region="eu-west-3";; \
+			gcp) default_region="europe-west1";; \
+			azure) default_region="westeurope";; \
+			scaleway) default_region="fr-par";; \
+		esac; \
+		read -p "Region [$$default_region]: " cloud_region; \
+		cloud_region=$${cloud_region:-$$default_region}; \
+	else \
+		cloud_region="$(CLOUD_REGION)"; \
+	fi; \
+	if [ -z "$(DOMAIN_NAME)" ]; then \
+		read -p "Domain name (e.g., app.example.com): " domain_name; \
+	else \
+		domain_name="$(DOMAIN_NAME)"; \
+	fi; \
+	if [ -z "$(ELASTIC_IP)" ] && [ "$$provider" = "aws" ]; then \
+		read -p "Existing Elastic IP (leave empty to create new): " elastic_ip; \
+	else \
+		elastic_ip="$(ELASTIC_IP)"; \
+	fi; \
+	if [ -z "$(ELASTIC_IP_ALLOC_ID)" ] && [ -n "$$elastic_ip" ] && [ "$$provider" = "aws" ]; then \
+		read -p "Elastic IP Allocation ID (eipalloc-xxx): " elastic_ip_alloc_id; \
+	else \
+		elastic_ip_alloc_id="$(ELASTIC_IP_ALLOC_ID)"; \
 	fi; \
 	\
 	if [ -z "$(AI_PROVIDER)" ]; then \
@@ -512,8 +543,18 @@ setup-deploy:
 	echo "" >> $(DEPLOY_CONFIG); \
 	echo "# Infrastructure" >> $(DEPLOY_CONFIG); \
 	echo "CLOUD_PROVIDER=$$provider" >> $(DEPLOY_CONFIG); \
+	echo "CLOUD_REGION=$$cloud_region" >> $(DEPLOY_CONFIG); \
 	echo "INFRA_TYPE=$$infra_type" >> $(DEPLOY_CONFIG); \
 	echo "ENVIRONMENT=prod" >> $(DEPLOY_CONFIG); \
+	echo "" >> $(DEPLOY_CONFIG); \
+	echo "# Domain & Network" >> $(DEPLOY_CONFIG); \
+	echo "DOMAIN_NAME=$$domain_name" >> $(DEPLOY_CONFIG); \
+	if [ -n "$$elastic_ip" ]; then \
+		echo "ELASTIC_IP=$$elastic_ip" >> $(DEPLOY_CONFIG); \
+	fi; \
+	if [ -n "$$elastic_ip_alloc_id" ]; then \
+		echo "ELASTIC_IP_ALLOC_ID=$$elastic_ip_alloc_id" >> $(DEPLOY_CONFIG); \
+	fi; \
 	echo "" >> $(DEPLOY_CONFIG); \
 	echo "# AI Provider" >> $(DEPLOY_CONFIG); \
 	echo "AI_PROVIDER=$$ai_provider" >> $(DEPLOY_CONFIG); \
@@ -559,8 +600,12 @@ setup-deploy:
 	echo "[OK] Production config saved to $(DEPLOY_CONFIG)"; \
 	echo ""; \
 	echo "Configuration summary:"; \
-	echo "  Cloud Provider: $$provider"; \
+	echo "  Cloud Provider: $$provider ($$cloud_region)"; \
 	echo "  Infrastructure: $$infra_type"; \
+	echo "  Domain: $$domain_name"; \
+	if [ -n "$$elastic_ip" ]; then \
+		echo "  Elastic IP: $$elastic_ip"; \
+	fi; \
 	echo "  AI Provider: $$ai_provider"; \
 	echo ""; \
 	echo "Next steps:"; \
