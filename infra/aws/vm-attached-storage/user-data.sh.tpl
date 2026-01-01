@@ -64,7 +64,7 @@ chown -R 999:999 /data/postgres
 # Clone Keystone
 echo "=== Cloning Keystone ==="
 cd /opt
-git clone https://github.com/fulltechfactory/agentic-fullstack-template.git keystone
+git clone https://github.com/fulltechfactory/keystone.git
 cd keystone
 
 # Create production config
@@ -128,16 +128,33 @@ OVERRIDE
 # Configure Caddy
 cat > /etc/caddy/Caddyfile << 'CADDYFILE'
 ${domain_name} {
+    # NextAuth
     handle /api/auth/* {
+        reverse_proxy localhost:3000 {
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+        }
+    }
+    
+    # CopilotKit (frontend route)
+    handle /api/copilotkit/* {
+        reverse_proxy localhost:3000
+    }
+    handle /api/copilotkit {
         reverse_proxy localhost:3000
     }
     
+    # Backend API
     handle /api/* {
         reverse_proxy localhost:8000
     }
 
+    # Keycloak
     handle /realms/* {
-        reverse_proxy localhost:8080
+        reverse_proxy localhost:8080 {
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+        }
     }
     handle /admin/* {
         reverse_proxy localhost:8080
@@ -146,7 +163,11 @@ ${domain_name} {
         reverse_proxy localhost:8080
     }
 
-    reverse_proxy localhost:3000
+    # Frontend (default)
+    reverse_proxy localhost:3000 {
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+    }
 }
 CADDYFILE
 
@@ -178,6 +199,7 @@ docker exec keystone-keycloak /opt/keycloak/bin/kcadm.sh update clients/$CLIENT_
 cat > frontend/.env.local << 'FRONTENDENV'
 BACKEND_URL=http://localhost:8000
 AUTH_SECRET=${auth_secret}
+AUTH_TRUST_HOST=true
 NEXTAUTH_URL=https://${domain_name}
 KEYCLOAK_CLIENT_ID=keystone-app
 KEYCLOAK_CLIENT_SECRET=keystone-secret
