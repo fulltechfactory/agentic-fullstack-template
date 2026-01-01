@@ -64,7 +64,7 @@ chown -R 999:999 /data/postgres
 # Clone Keystone
 echo "=== Cloning Keystone ==="
 cd /opt
-git clone https://github.com/fulltechfactory/keystone.git
+git clone https://github.com/fulltechfactory/agentic-fullstack-template.git keystone
 cd keystone
 
 # Create production config
