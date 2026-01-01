@@ -497,12 +497,12 @@ export default function KnowledgePage() {
                                 <div className="flex items-center gap-2">
                                   {getFileIcon(doc.name || "text.txt")}
                                   <h4 className="font-medium">{doc.name || "Untitled"}</h4>
-                                  {doc.metadata?.category && (
+                                  {!!doc.metadata?.category && (
                                     <span className="text-xs px-2 py-0.5 rounded bg-muted">
                                       {doc.metadata.category as string}
                                     </span>
                                   )}
-                                  {doc.metadata?.language && (
+                                  {!!doc.metadata?.language && (
                                     <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                                       {doc.metadata.language as string}
                                     </span>

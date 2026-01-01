@@ -207,7 +207,7 @@ WantedBy=multi-user.target
 SYSTEMD
 
 # Build frontend for production
-pnpm build
+pnpm build --webpack
 
 # Enable and start frontend service
 systemctl daemon-reload
