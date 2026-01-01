@@ -126,39 +126,39 @@ fi
 echo ""
 echo "Setting up admin user..."
 
-USER_ID=$(/opt/keycloak/bin/kcadm.sh get users -r ${KEYCLOAK_REALM} -q username=adminuser --fields id | grep -o '"id" : "[^"]*"' | cut -d'"' -f4)
+USER_ID=$(/opt/keycloak/bin/kcadm.sh get users -r ${KEYCLOAK_REALM} -q username=${KEYSTONE_ADMIN} --fields id | grep -o '"id" : "[^"]*"' | cut -d'"' -f4)
 
 if [ -z "$USER_ID" ]; then
     /opt/keycloak/bin/kcadm.sh create users -r ${KEYCLOAK_REALM} \
-        -s username=adminuser \
-        -s email=adminuser@example.com \
+        -s username=${KEYSTONE_ADMIN} \
+        -s email=${KEYSTONE_ADMIN}@example.com \
         -s emailVerified=true \
         -s enabled=true \
         -s firstName=Admin \
         -s lastName=User
     
     /opt/keycloak/bin/kcadm.sh set-password -r ${KEYCLOAK_REALM} \
-        --username adminuser \
-        --new-password adminuser
+        --username ${KEYSTONE_ADMIN} \
+        --new-password ${KEYSTONE_ADMIN_PASSWORD}
     
-    echo "  User adminuser created"
+    echo "  User ${KEYSTONE_ADMIN} created"
 else
-    echo "  User adminuser already exists"
+    echo "  User ${KEYSTONE_ADMIN} already exists"
 fi
 
 # Assign ADMIN role
 /opt/keycloak/bin/kcadm.sh add-roles -r ${KEYCLOAK_REALM} \
-    --uusername adminuser \
+    --uusername ${KEYSTONE_ADMIN} \
     --cclientid ${KEYCLOAK_CLIENT_ID} \
     --rolename ADMIN 2>/dev/null && echo "  Role ADMIN assigned" || echo "  Role ADMIN already assigned"
 
-# Add adminuser to COMPANY group
-USER_ID=$(/opt/keycloak/bin/kcadm.sh get users -r ${KEYCLOAK_REALM} -q username=adminuser --fields id | grep -o '"id" : "[^"]*"' | cut -d'"' -f4)
+# Add ${KEYSTONE_ADMIN} to COMPANY group
+USER_ID=$(/opt/keycloak/bin/kcadm.sh get users -r ${KEYCLOAK_REALM} -q username=${KEYSTONE_ADMIN} --fields id | grep -o '"id" : "[^"]*"' | cut -d'"' -f4)
 GROUP_ID=$(/opt/keycloak/bin/kcadm.sh get groups -r ${KEYCLOAK_REALM} -q search=COMPANY --fields id | grep -o '"id" : "[^"]*"' | cut -d'"' -f4 | head -1)
 
 if [ -n "$USER_ID" ] && [ -n "$GROUP_ID" ]; then
     /opt/keycloak/bin/kcadm.sh update users/${USER_ID}/groups/${GROUP_ID} -r ${KEYCLOAK_REALM} -s realm=${KEYCLOAK_REALM} -s userId=${USER_ID} -s groupId=${GROUP_ID} -n 2>/dev/null
-    echo "  Added adminuser to /COMPANY"
+    echo "  Added ${KEYSTONE_ADMIN} to /COMPANY"
 fi
 
 echo ""
@@ -174,7 +174,7 @@ echo "Groups:"
 echo "  - /COMPANY: Default group for all users"
 echo ""
 echo "Default Admin:"
-echo "  - adminuser / adminuser (ADMIN)"
+echo "  - ${KEYSTONE_ADMIN} / *** (ADMIN)"
 echo ""
 echo "Use the admin UI to create additional users and groups."
 echo ""

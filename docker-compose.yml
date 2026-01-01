@@ -81,6 +81,8 @@ services:
       CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-keystone-app}
       CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-keystone-secret}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      KEYSTONE_ADMIN: ${KEYSTONE_ADMIN:-adminuser}
+      KEYSTONE_ADMIN_PASSWORD: ${KEYSTONE_ADMIN_PASSWORD:-adminuser}
     volumes:
       - ./docker/keycloak/setup-realm.sh:/opt/setup-realm.sh:ro
     depends_on:

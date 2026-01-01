@@ -33,6 +33,9 @@ if [ -n "$AI_KEY_VAR" ]; then
     AI_API_KEY_VALUE="${!AI_KEY_VAR}"
 fi
 
+# Generate auth secret if not present
+AUTH_SECRET=$(openssl rand -base64 32)
+
 # Generate tfvars
 cat > "$TFVARS" << TFVARSEOF
 # =============================================================================
@@ -79,12 +82,16 @@ db_migration_password = "$DB_MIGRATION_PASSWORD"
 db_keycloak_password  = "$DB_KEYCLOAK_PASSWORD"
 
 # Application Credentials
+keystone_admin          = "$KEYSTONE_ADMIN"
 keystone_admin_password = "$KEYSTONE_ADMIN_PASSWORD"
 keycloak_admin_password = "$KEYCLOAK_ADMIN_PASSWORD"
 
 # AI Provider
 ai_provider = "$AI_PROVIDER"
 ai_api_key  = "$AI_API_KEY_VALUE"
+
+# Auth
+auth_secret = "$AUTH_SECRET"
 TFVARSEOF
 
 echo "[OK] Generated $TFVARS"

@@ -32,7 +32,8 @@ postgres_volume_size = 20
 elastic_ip_allocation_id = null
 
 # =============================================================================
-# Database Credentials (use strong passwords!)
+# Database Credentials
+# IMPORTANT: Do NOT use @, :, /, or # in passwords
 # =============================================================================
 postgres_password     = "CHANGE_ME_postgres_super_secret"
 db_app_password       = "CHANGE_ME_app_secret"
@@ -42,6 +43,7 @@ db_keycloak_password  = "CHANGE_ME_keycloak_db_secret"
 # =============================================================================
 # Application Credentials
 # =============================================================================
+keystone_admin          = "adminuser"
 keystone_admin_password = "CHANGE_ME_keystone_admin"
 keycloak_admin_password = "CHANGE_ME_keycloak_admin"
 
@@ -51,3 +53,8 @@ keycloak_admin_password = "CHANGE_ME_keycloak_admin"
 # =============================================================================
 ai_provider = "openai"
 ai_api_key  = "sk-your-openai-api-key"
+
+# =============================================================================
+# Auth Secret (generate with: openssl rand -base64 32)
+# =============================================================================
+auth_secret = "CHANGE_ME_generate_with_openssl"

@@ -200,113 +200,19 @@ module "compute" {
 # =============================================================================
 
 locals {
-  user_data_script = <<-USERDATA
-#!/bin/bash
-set -e
-
-# Log everything
-exec > >(tee /var/log/user-data.log) 2>&1
-echo "=== Starting Keystone setup ==="
-
-# Wait for cloud-init to finish
-cloud-init status --wait
-
-# Update system
-apt-get update
-apt-get upgrade -y
-
-# Install Docker
-apt-get install -y ca-certificates curl gnupg
-install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-chmod a+r /etc/apt/keyrings/docker.gpg
-
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-apt-get update
-apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-# Start Docker
-systemctl enable docker
-systemctl start docker
-
-# Install additional tools
-apt-get install -y git make jq nvme-cli
-
-# Format and mount PostgreSQL data volume
-echo "=== Setting up PostgreSQL data volume ==="
-DATA_DEVICE="/dev/nvme1n1"
-
-# Wait for volume to attach
-while [ ! -e $DATA_DEVICE ]; do
-  echo "Waiting for data volume..."
-  sleep 5
-done
-
-# Check if already formatted
-if ! blkid $DATA_DEVICE; then
-  echo "Formatting data volume..."
-  mkfs.ext4 $DATA_DEVICE
-fi
-
-# Create mount point and mount
-mkdir -p /data/postgres
-mount $DATA_DEVICE /data/postgres
-
-# Add to fstab for persistence
-if ! grep -q "$DATA_DEVICE" /etc/fstab; then
-  echo "$DATA_DEVICE /data/postgres ext4 defaults,nofail 0 2" >> /etc/fstab
-fi
-
-# Set permissions
-chown -R 999:999 /data/postgres
-
-# Clone Keystone
-echo "=== Cloning Keystone ==="
-cd /opt
-git clone https://github.com/fulltechfactory/keystone.git
-cd keystone
-
-# Create production config
-cat > .deploy-config << 'DEPLOYCONFIG'
-ENVIRONMENT=prod
-CLOUD_PROVIDER=aws
-DOMAIN_NAME=${var.domain_name}
-
-AI_PROVIDER=${var.ai_provider}
-${var.ai_provider == "openai" ? "OPENAI_API_KEY=${var.ai_api_key}" : ""}
-${var.ai_provider == "anthropic" ? "ANTHROPIC_API_KEY=${var.ai_api_key}" : ""}
-${var.ai_provider == "gemini" ? "GOOGLE_API_KEY=${var.ai_api_key}" : ""}
-${var.ai_provider == "mistral" ? "MISTRAL_API_KEY=${var.ai_api_key}" : ""}
-
-POSTGRES_PASSWORD=${var.postgres_password}
-DB_APP_HOST=postgres
-DB_APP_PORT=5432
-DB_APP_NAME=keystone_db
-DB_APP_SCHEMA=app
-DB_APP_USER=appuser
-DB_APP_PASSWORD=${var.db_app_password}
-
-DB_MIGRATION_USER=migration
-DB_MIGRATION_PASSWORD=${var.db_migration_password}
-
-DB_KEYCLOAK_HOST=postgres
-DB_KEYCLOAK_PORT=5432
-DB_KEYCLOAK_NAME=keystone_db
-DB_KEYCLOAK_SCHEMA=keycloak
-DB_KEYCLOAK_USER=keycloak
-DB_KEYCLOAK_PASSWORD=${var.db_keycloak_password}
-
-KEYSTONE_ADMIN=adminuser
-KEYSTONE_ADMIN_PASSWORD=${var.keystone_admin_password}
-
-KEYCLOAK_ADMIN=admin
-KEYCLOAK_ADMIN_PASSWORD=${var.keycloak_admin_password}
-DEPLOYCONFIG
-
-echo "=== Keystone setup complete ==="
-echo "Run 'cd /opt/keystone && docker compose up -d' to start the application"
-USERDATA
+  user_data_script = templatefile("${path.module}/user-data.sh.tpl", {
+    domain_name            = var.domain_name
+    ai_provider            = var.ai_provider
+    ai_api_key             = var.ai_api_key
+    postgres_password      = var.postgres_password
+    db_app_password        = var.db_app_password
+    db_migration_password  = var.db_migration_password
+    db_keycloak_password   = var.db_keycloak_password
+    keystone_admin         = var.keystone_admin
+    keystone_admin_password = var.keystone_admin_password
+    keycloak_admin_password = var.keycloak_admin_password
+    auth_secret            = var.auth_secret
+  })
 }
 
 # =============================================================================
@@ -356,4 +262,16 @@ output "ssm_command" {
 output "application_url" {
   description = "Application URL"
   value       = "https://${var.domain_name}"
+}
+
+variable "keystone_admin" {
+  description = "Keystone admin username"
+  type        = string
+  default     = "adminuser"
+}
+
+variable "auth_secret" {
+  description = "NextAuth secret (generate with: openssl rand -base64 32)"
+  type        = string
+  sensitive   = true
 }
