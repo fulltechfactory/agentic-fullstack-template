@@ -18,6 +18,9 @@ services:
       DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD:-migration}
       DB_APP_USER: ${DB_APP_USER:-appuser}
       DB_APP_PASSWORD: ${DB_APP_PASSWORD:-appuser}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       DB_KEYCLOAK_USER: ${DB_KEYCLOAK_USER:-keycloak}
       DB_KEYCLOAK_PASSWORD: ${DB_KEYCLOAK_PASSWORD:-keycloak}
     ports:
@@ -116,6 +119,9 @@ services:
       DB_APP_SCHEMA: ${DB_APP_SCHEMA:-app}
       DB_APP_USER: ${DB_APP_USER:-appuser}
       DB_APP_PASSWORD: ${DB_APP_PASSWORD:-appuser}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
     ports:
       - "8000:8000"
     depends_on:
