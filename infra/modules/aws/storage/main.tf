@@ -100,6 +100,10 @@ resource "aws_s3_bucket" "caddy_certs" {
     ManagedBy   = "opentofu"
     Purpose     = "Caddy SSL certificates storage"
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "random_id" "bucket_suffix" {
