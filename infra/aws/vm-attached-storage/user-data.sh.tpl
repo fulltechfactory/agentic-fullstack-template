@@ -28,13 +28,6 @@ curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt-get install -y nodejs
 npm install -g pnpm
 
-# Install Caddy
-apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
-apt-get update
-apt-get install -y caddy
-
 # Install additional tools
 apt-get install -y git make jq nvme-cli
 
@@ -125,8 +118,67 @@ services:
       KC_PROXY_HEADERS: "xforwarded"
 OVERRIDE
 
-# Configure Caddy
+# Install Caddy with S3 storage plugin
+echo "=== Installing Caddy with S3 storage ==="
+apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
+
+# Install Go for xcaddy
+wget -q https://go.dev/dl/go1.22.0.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.22.0.linux-amd64.tar.gz
+rm go1.22.0.linux-amd64.tar.gz
+export PATH=$PATH:/usr/local/go/bin
+export GOPATH=/root/go
+export PATH=$PATH:$GOPATH/bin
+
+# Install xcaddy and build Caddy with S3 module
+go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
+xcaddy build --with github.com/ss098/certmagic-s3
+
+# Move custom caddy to system location
+mv caddy /usr/bin/caddy
+chmod +x /usr/bin/caddy
+
+# Create caddy user and directories
+useradd --system --home /var/lib/caddy --shell /usr/sbin/nologin caddy || true
+mkdir -p /var/lib/caddy /etc/caddy
+chown -R caddy:caddy /var/lib/caddy
+
+# Create systemd service for caddy
+cat > /etc/systemd/system/caddy.service << 'SYSTEMD'
+[Unit]
+Description=Caddy
+Documentation=https://caddyserver.com/docs/
+After=network.target network-online.target
+Requires=network-online.target
+
+[Service]
+Type=notify
+User=caddy
+Group=caddy
+ExecStart=/usr/bin/caddy run --environ --config /etc/caddy/Caddyfile
+ExecReload=/usr/bin/caddy reload --config /etc/caddy/Caddyfile
+TimeoutStopSec=5s
+LimitNOFILE=1048576
+LimitNPROC=512
+PrivateTmp=true
+ProtectSystem=full
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target
+SYSTEMD
+
+# Configure Caddy with S3 storage
 cat > /etc/caddy/Caddyfile << 'CADDYFILE'
+{
+    storage s3 {
+        host s3.${aws_region}.amazonaws.com
+        bucket ${caddy_bucket_name}
+        prefix "caddy"
+        use_iam_provider true
+    }
+}
+
 ${domain_name} {
     # Keycloak
     handle /realms/* {
@@ -147,7 +199,9 @@ ${domain_name} {
 }
 CADDYFILE
 
-systemctl restart caddy
+systemctl daemon-reload
+systemctl enable caddy
+systemctl start caddy
 
 # Start backend services
 echo "=== Starting backend services ==="

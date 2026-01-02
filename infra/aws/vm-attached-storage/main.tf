@@ -162,15 +162,6 @@ module "networking" {
   availability_zone = var.availability_zone
 }
 
-module "security" {
-  source = "../../modules/aws/security"
-
-  project_name      = var.project_name
-  environment       = var.environment
-  vpc_id            = module.networking.vpc_id
-  allowed_ssh_cidrs = var.allowed_ssh_cidrs
-}
-
 module "storage" {
   source = "../../modules/aws/storage"
 
@@ -178,6 +169,16 @@ module "storage" {
   environment       = var.environment
   availability_zone = var.availability_zone
   volume_size       = var.postgres_volume_size
+}
+
+module "security" {
+  source = "../../modules/aws/security"
+
+  project_name      = var.project_name
+  environment       = var.environment
+  vpc_id            = module.networking.vpc_id
+  allowed_ssh_cidrs = var.allowed_ssh_cidrs
+  caddy_bucket_arn  = module.storage.caddy_bucket_arn
 }
 
 module "compute" {
@@ -212,6 +213,8 @@ locals {
     keystone_admin_password = var.keystone_admin_password
     keycloak_admin_password = var.keycloak_admin_password
     auth_secret            = var.auth_secret
+    caddy_bucket_name      = module.storage.caddy_bucket_name
+    aws_region             = var.aws_region
   })
 }
 
@@ -274,4 +277,9 @@ variable "auth_secret" {
   description = "NextAuth secret (generate with: openssl rand -base64 32)"
   type        = string
   sensitive   = true
+}
+
+output "caddy_bucket_name" {
+  description = "Caddy certificates S3 bucket name"
+  value       = module.storage.caddy_bucket_name
 }

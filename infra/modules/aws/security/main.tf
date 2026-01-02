@@ -139,3 +139,38 @@ output "ec2_role_arn" {
   description = "EC2 IAM role ARN"
   value       = aws_iam_role.ec2.arn
 }
+
+# =============================================================================
+# S3 Policy for Caddy certificates
+# =============================================================================
+
+variable "caddy_bucket_arn" {
+  description = "ARN of the Caddy certificates S3 bucket"
+  type        = string
+  default     = ""
+}
+
+resource "aws_iam_role_policy" "caddy_s3" {
+  count = var.caddy_bucket_arn != "" ? 1 : 0
+  name  = "${var.project_name}-caddy-s3-policy"
+  role  = aws_iam_role.ec2.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          var.caddy_bucket_arn,
+          "${var.caddy_bucket_arn}/*"
+        ]
+      }
+    ]
+  })
+}
