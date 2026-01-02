@@ -128,27 +128,6 @@ OVERRIDE
 # Configure Caddy
 cat > /etc/caddy/Caddyfile << 'CADDYFILE'
 ${domain_name} {
-    # NextAuth
-    handle /api/auth/* {
-        reverse_proxy localhost:3000 {
-            header_up X-Forwarded-Proto {scheme}
-            header_up X-Forwarded-Host {host}
-        }
-    }
-    
-    # CopilotKit (frontend route)
-    handle /api/copilotkit/* {
-        reverse_proxy localhost:3000
-    }
-    handle /api/copilotkit {
-        reverse_proxy localhost:3000
-    }
-    
-    # Backend API
-    handle /api/* {
-        reverse_proxy localhost:8000
-    }
-
     # Keycloak
     handle /realms/* {
         reverse_proxy localhost:8080 {
@@ -156,14 +135,11 @@ ${domain_name} {
             header_up X-Forwarded-Host {host}
         }
     }
-    handle /admin/* {
-        reverse_proxy localhost:8080
-    }
     handle /resources/* {
         reverse_proxy localhost:8080
     }
 
-    # Frontend (default)
+    # Everything else goes to frontend (including all /api/*)
     reverse_proxy localhost:3000 {
         header_up X-Forwarded-Proto {scheme}
         header_up X-Forwarded-Host {host}
