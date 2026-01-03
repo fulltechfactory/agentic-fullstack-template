@@ -7,7 +7,7 @@ import {
 import { NextRequest } from "next/server";
 import { auth } from "@/auth";
 
-const backendUrl = process.env.BACKEND_URL || "http://localhost:8000"\;
+const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
 
 export const POST = async (req: NextRequest) => {
   // Get user session
