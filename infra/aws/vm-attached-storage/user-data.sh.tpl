@@ -52,7 +52,8 @@ if ! grep -q "$DATA_DEVICE" /etc/fstab; then
   echo "$DATA_DEVICE /data/postgres ext4 defaults,nofail 0 2" >> /etc/fstab
 fi
 
-chown -R 999:999 /data/postgres
+mkdir -p /data/postgres/pgdata
+chown -R 999:999 /data/postgres/pgdata
 
 # Clone Keystone
 echo "=== Cloning Keystone ==="
@@ -113,7 +114,7 @@ cat > docker-compose.override.yml << 'OVERRIDE'
 services:
   postgres:
     volumes:
-      - /data/postgres:/var/lib/postgresql/data
+      - /data/postgres/pgdata:/var/lib/postgresql/data
       - ./docker/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
   keycloak:
     environment:
