@@ -144,14 +144,14 @@ output "ec2_role_arn" {
 # S3 Policy for Caddy certificates
 # =============================================================================
 
-variable "caddy_bucket_arn" {
+variable "caddy_bucket_name" {
   description = "ARN of the Caddy certificates S3 bucket"
   type        = string
   default     = ""
 }
 
 resource "aws_iam_role_policy" "caddy_s3" {
-  count = var.caddy_bucket_arn != "" ? 1 : 0
+  count = var.caddy_bucket_name != "" ? 1 : 0
   name  = "${var.project_name}-caddy-s3-policy"
   role  = aws_iam_role.ec2.id
 
@@ -167,8 +167,8 @@ resource "aws_iam_role_policy" "caddy_s3" {
           "s3:ListBucket"
         ]
         Resource = [
-          var.caddy_bucket_arn,
-          "${var.caddy_bucket_arn}/*"
+          "arn:aws:s3:::${var.caddy_bucket_name}",
+          "arn:aws:s3:::${var.caddy_bucket_name}/*"
         ]
       }
     ]

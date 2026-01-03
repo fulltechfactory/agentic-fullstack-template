@@ -92,6 +92,9 @@ ai_api_key  = "$AI_API_KEY_VALUE"
 
 # Auth
 auth_secret = "$AUTH_SECRET"
+
+# Caddy S3 bucket (created manually)
+caddy_bucket_name = "$CADDY_BUCKET_NAME"
 TFVARSEOF
 
 echo "[OK] Generated $TFVARS"

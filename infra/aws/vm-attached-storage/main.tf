@@ -178,7 +178,7 @@ module "security" {
   environment       = var.environment
   vpc_id            = module.networking.vpc_id
   allowed_ssh_cidrs = var.allowed_ssh_cidrs
-  caddy_bucket_arn  = module.storage.caddy_bucket_arn
+  caddy_bucket_name = var.caddy_bucket_name
 }
 
 module "compute" {
@@ -213,7 +213,7 @@ locals {
     keystone_admin_password = var.keystone_admin_password
     keycloak_admin_password = var.keycloak_admin_password
     auth_secret            = var.auth_secret
-    caddy_bucket_name      = module.storage.caddy_bucket_name
+    caddy_bucket_name      = var.caddy_bucket_name
     aws_region             = var.aws_region
   })
 }
@@ -281,5 +281,10 @@ variable "auth_secret" {
 
 output "caddy_bucket_name" {
   description = "Caddy certificates S3 bucket name"
-  value       = module.storage.caddy_bucket_name
+  value       = var.caddy_bucket_name
+}
+
+variable "caddy_bucket_name" {
+  description = "S3 bucket name for Caddy certificates (created manually)"
+  type        = string
 }

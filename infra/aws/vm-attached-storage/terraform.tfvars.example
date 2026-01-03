@@ -58,3 +58,8 @@ ai_api_key  = "sk-your-openai-api-key"
 # Auth Secret (generate with: openssl rand -base64 32)
 # =============================================================================
 auth_secret = "CHANGE_ME_generate_with_openssl"
+
+# =============================================================================
+# Caddy S3 Bucket (created manually, not managed by OpenTofu)
+# =============================================================================
+caddy_bucket_name = "your-caddy-certs-bucket"

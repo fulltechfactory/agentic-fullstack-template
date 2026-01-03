@@ -152,6 +152,7 @@ make setup-deploy \
     KEYSTONE_ADMIN_PASSWORD=ks-secret \
     KEYCLOAK_ADMIN=admin \
     KEYCLOAK_ADMIN_PASSWORD=admin-secret \
+    CADDY_BUCKET_NAME=test-caddy-bucket \
     > /dev/null 2>&1
 check_config_value .deploy-config "ENVIRONMENT" "prod"
 check_config_value .deploy-config "CLOUD_PROVIDER" "aws"
@@ -187,6 +188,7 @@ make setup-deploy \
     KEYSTONE_ADMIN_PASSWORD=ks123 \
     KEYCLOAK_ADMIN=kcadmin \
     KEYCLOAK_ADMIN_PASSWORD=kcpass \
+    CADDY_BUCKET_NAME=test-caddy-bucket \
     > /dev/null 2>&1
 check_config_value .deploy-config "CLOUD_PROVIDER" "gcp"
 check_config_value .deploy-config "CLOUD_REGION" "europe-west1"
@@ -212,6 +214,7 @@ make setup-deploy \
     KEYSTONE_ADMIN_PASSWORD=ks-k8s \
     KEYCLOAK_ADMIN=admin \
     KEYCLOAK_ADMIN_PASSWORD=admin-k8s \
+    CADDY_BUCKET_NAME=test-caddy-bucket \
     > /dev/null 2>&1
 check_config_value .deploy-config "CLOUD_PROVIDER" "azure"
 check_config_value .deploy-config "CLOUD_REGION" "westeurope"
@@ -236,6 +239,7 @@ make setup-deploy \
     KEYSTONE_ADMIN_PASSWORD=ks-scw \
     KEYCLOAK_ADMIN=admin \
     KEYCLOAK_ADMIN_PASSWORD=admin-scw \
+    CADDY_BUCKET_NAME=test-caddy-bucket \
     > /dev/null 2>&1
 check_config_value .deploy-config "CLOUD_PROVIDER" "scaleway"
 check_config_value .deploy-config "CLOUD_REGION" "fr-par"
@@ -257,7 +261,7 @@ fi
 
 log_test "setup-deploy with invalid CLOUD_PROVIDER should fail"
 cleanup
-if make setup-deploy CLOUD_PROVIDER=invalid INFRA_TYPE=vm-attached-storage AI_PROVIDER=openai AI_API_KEY=sk-test POSTGRES_PASSWORD=pg DB_APP_PASSWORD=app DB_MIGRATION_PASSWORD=mig DB_KEYCLOAK_PASSWORD=kc KEYSTONE_ADMIN=admin KEYSTONE_ADMIN_PASSWORD=ks KEYCLOAK_ADMIN=admin KEYCLOAK_ADMIN_PASSWORD=kc DOMAIN_NAME=test.com CLOUD_REGION=us-east-1 > /dev/null 2>&1; then
+if make setup-deploy CLOUD_PROVIDER=invalid INFRA_TYPE=vm-attached-storage AI_PROVIDER=openai AI_API_KEY=sk-test POSTGRES_PASSWORD=pg DB_APP_PASSWORD=app DB_MIGRATION_PASSWORD=mig DB_KEYCLOAK_PASSWORD=kc KEYSTONE_ADMIN=admin KEYSTONE_ADMIN_PASSWORD=ks KEYCLOAK_ADMIN=admin KEYCLOAK_ADMIN_PASSWORD=kc CADDY_BUCKET_NAME=test DOMAIN_NAME=test.com CLOUD_REGION=us-east-1 > /dev/null 2>&1; then
     log_fail "Should have failed with invalid CLOUD_PROVIDER"
 else
     log_pass "Correctly rejected invalid CLOUD_PROVIDER"
@@ -265,7 +269,7 @@ fi
 
 log_test "setup-deploy with invalid INFRA_TYPE should fail"
 cleanup
-if make setup-deploy CLOUD_PROVIDER=aws INFRA_TYPE=invalid AI_PROVIDER=openai AI_API_KEY=sk-test POSTGRES_PASSWORD=pg DB_APP_PASSWORD=app DB_MIGRATION_PASSWORD=mig DB_KEYCLOAK_PASSWORD=kc KEYSTONE_ADMIN=admin KEYSTONE_ADMIN_PASSWORD=ks KEYCLOAK_ADMIN=admin KEYCLOAK_ADMIN_PASSWORD=kc DOMAIN_NAME=test.com CLOUD_REGION=us-east-1 > /dev/null 2>&1; then
+if make setup-deploy CLOUD_PROVIDER=aws INFRA_TYPE=invalid AI_PROVIDER=openai AI_API_KEY=sk-test POSTGRES_PASSWORD=pg DB_APP_PASSWORD=app DB_MIGRATION_PASSWORD=mig DB_KEYCLOAK_PASSWORD=kc KEYSTONE_ADMIN=admin KEYSTONE_ADMIN_PASSWORD=ks KEYCLOAK_ADMIN=admin KEYCLOAK_ADMIN_PASSWORD=kc CADDY_BUCKET_NAME=test DOMAIN_NAME=test.com CLOUD_REGION=us-east-1 > /dev/null 2>&1; then
     log_fail "Should have failed with invalid INFRA_TYPE"
 else
     log_pass "Correctly rejected invalid INFRA_TYPE"
