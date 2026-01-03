@@ -14,7 +14,7 @@ A fullstack template for building AI-powered applications with CopilotKit and Ag
 - **Authentication**: Keycloak + NextAuth.js with secure OAuth2/OIDC
 - **AG-UI Protocol**: Real-time streaming communication between frontend and backend
 - **Source Citations**: AI responses cite document sources from knowledge base
-- **Multi-cloud ready**: Infrastructure as Code for AWS, GCP, Azure (OpenTofu)
+- **Production Ready**: Infrastructure as Code with OpenTofu for AWS (GCP, Azure coming soon)
 
 ## Stack
 
@@ -25,20 +25,31 @@ A fullstack template for building AI-powered applications with CopilotKit and Ag
 | Protocol | AG-UI (Agent-User Interaction) |
 | Auth | Keycloak + NextAuth.js |
 | Database | PostgreSQL 16 + PgVector |
-| Infrastructure | Docker, OpenTofu |
+| Infrastructure | Docker, OpenTofu, Caddy |
 
 ## Prerequisites
+
+### For Local Development
 
 - **Node.js** 18+ (recommended: 20+)
 - **pnpm** 9+ (install with `npm install -g pnpm`)
 - **Docker** and Docker Compose
 - **Git**
 
+### For Production Deployment (AWS)
+
+- **AWS CLI** configured with appropriate permissions
+- **AWS Account** with EC2, VPC, EBS, S3, IAM access
+- **Elastic IP** (recommended to allocate beforehand)
+- **Domain name** pointing to your Elastic IP
+- **S3 bucket** for SSL certificate persistence (created manually)
+- **OpenTofu** 1.6+ (or Terraform)
+
 ### Optional (for local AI)
 
 - **Ollama** for local LLM inference (https://ollama.ai)
 
-## Quick Start
+## Quick Start (Local Development)
 
 ### 1. Clone the repository
 ```bash
@@ -75,6 +86,109 @@ make frontend
 ### 5. Access the application
 
 Open `http://localhost:3000` and sign in with `adminuser` / `adminuser`.
+
+## Production Deployment (AWS)
+
+### Architecture
+
+The `vm-attached-storage` deployment creates:
+- **VPC** with public subnet, internet gateway, route table
+- **EC2 instance** (t3.medium) running all services
+- **EBS volume** (20GB) for PostgreSQL data persistence
+- **Elastic IP** for static public IP
+- **Security Group** allowing ports 80, 443
+- **IAM Role** for SSM access and S3 certificate storage
+- **Caddy** reverse proxy with automatic Let's Encrypt SSL
+
+### Prerequisites
+
+1. **Create S3 bucket** for SSL certificates (survives infrastructure destroy):
+```bash
+aws s3 mb s3://your-caddy-certs-bucket --region eu-west-3
+aws s3api put-bucket-versioning --bucket your-caddy-certs-bucket --versioning-configuration Status=Enabled
+```
+
+2. **Allocate Elastic IP** (optional but recommended):
+```bash
+aws ec2 allocate-address --domain vpc --region eu-west-3
+```
+
+3. **Configure DNS** to point your domain to the Elastic IP.
+
+### Deployment Steps
+
+#### 1. Configure production environment
+```bash
+make setup-deploy
+```
+
+Follow the prompts to configure:
+- Cloud provider (AWS)
+- Infrastructure type (vm-attached-storage)
+- Domain name
+- Elastic IP
+- AI provider and API key
+- Database passwords
+- Admin credentials
+- S3 bucket for certificates
+
+#### 2. Initialize OpenTofu
+```bash
+make infra-init
+```
+
+#### 3. Preview infrastructure changes
+```bash
+make infra-plan
+```
+
+#### 4. Deploy infrastructure
+```bash
+make infra-apply
+```
+
+#### 5. Monitor deployment progress
+```bash
+# Get instance ID
+make infra-output
+
+# Connect via SSM
+aws ssm start-session --target <instance-id> --region eu-west-3
+
+# Watch deployment logs
+sudo tail -f /var/log/user-data.log
+```
+
+#### 6. Access the application
+
+Once deployment completes (~5-10 minutes), access your application at `https://your-domain.com`.
+
+### Infrastructure Commands
+
+| Command | Description |
+|---------|-------------|
+| `make infra-init` | Initialize OpenTofu (download providers) |
+| `make infra-plan` | Preview infrastructure changes |
+| `make infra-apply` | Create/update infrastructure |
+| `make infra-destroy` | Destroy infrastructure (keeps S3 bucket) |
+| `make infra-output` | Show infrastructure outputs (IPs, IDs) |
+
+### SSL Certificates
+
+- Certificates are automatically obtained from Let's Encrypt
+- Stored in S3 bucket (persists across infrastructure destroy/recreate)
+- Automatic renewal ~30 days before expiration
+- Rate limit: 5 certificates per domain per week
+
+### Cost Estimate (AWS eu-west-3)
+
+| Resource | Monthly Cost |
+|----------|-------------|
+| EC2 t3.medium | ~$30 |
+| EBS 20GB gp3 | ~$2 |
+| Elastic IP | Free (if attached) |
+| S3 (certificates) | <$1 |
+| **Total** | **~$33/month** |
 
 ## Getting Started Workflow
 
@@ -152,7 +266,7 @@ The application supports multiple knowledge bases, each linked to a Keycloak gro
 2. Group members automatically have READ access to their KB
 3. ADMIN grants WRITE permission to specific users
 4. Users with WRITE can upload documents (text or files)
-5. Chat searches all accessible KBs and cites sources in responses
+5. Chat searches only accessible KBs and cites sources in responses
 
 ### Knowledge Base Management
 
@@ -206,8 +320,14 @@ The agent searches accessible knowledge bases to answer questions with relevant 
 1. Users with WRITE permission upload documents via the Knowledge Base UI
 2. Content is chunked and embedded using OpenAI `text-embedding-3-small`
 3. Embeddings are stored in PostgreSQL with PgVector
-4. On each query, relevant documents are retrieved from accessible KBs
+4. On each query, relevant documents are retrieved from accessible KBs only
 5. The agent uses this context and **cites the source documents** in responses
+
+### Security
+
+- RAG queries are filtered by user's group membership and explicit permissions
+- Users can only access documents from KBs they have READ access to
+- Cross-group access requires explicit permission from ADMIN
 
 ### Requirements
 
@@ -274,6 +394,16 @@ The application supports light, dark, and system themes. Toggle via the sun/moon
 | `make frontend-install` | Install frontend dependencies |
 | `make frontend-env` | Generate frontend/.env.local |
 
+### Infrastructure Commands
+
+| Command | Description |
+|---------|-------------|
+| `make infra-init` | Initialize OpenTofu providers |
+| `make infra-plan` | Preview infrastructure changes |
+| `make infra-apply` | Deploy infrastructure |
+| `make infra-destroy` | Destroy infrastructure |
+| `make infra-output` | Show outputs (IPs, instance ID) |
+
 ## AI Providers
 
 | Provider | Type | Configuration |
@@ -294,7 +424,6 @@ Access Keycloak admin at `http://localhost:8080` with:
 ## Renaming the Project
 
 To rename the project for your own use (after forking):
-
 ```bash
 ./scripts/rename-project.sh "My Project Name"
 ```
@@ -315,9 +444,11 @@ This updates all references (containers, database, Keycloak realm, UI).
 - [x] Admin user & group management
 - [x] KB Management (permissions, WRITE/READ control)
 - [x] Source citations in chat responses
+- [x] Infrastructure as Code - AWS (vm-attached-storage)
 - [ ] KB selector in chat (filter by specific KB)
 - [ ] User Memory (persistent user preferences)
-- [ ] Infrastructure as Code (OpenTofu for AWS/GCP/Azure)
+- [ ] Infrastructure as Code - GCP
+- [ ] Infrastructure as Code - Azure
 - [ ] Test suite (frontend, backend, infrastructure)
 
 ## Troubleshooting
@@ -349,6 +480,29 @@ docker logs keystone-keycloak-setup
 ```bash
 make dev-clean
 make dev-up
+```
+
+### SSL Certificate Rate Limit
+
+If you see `HTTP 429 rateLimited` errors from Let's Encrypt:
+- Wait 1 week (limit: 5 certs per domain per week)
+- Certificates persist in S3, so destroy/recreate won't request new ones
+- Use staging environment for testing: modify Caddyfile to use `acme_ca https://acme-staging-v02.api.letsencrypt.org/directory`
+
+### Production Deployment Issues
+```bash
+# Connect to instance
+aws ssm start-session --target <instance-id> --region eu-west-3
+
+# Check deployment logs
+sudo tail -100 /var/log/user-data.log
+
+# Check service status
+docker ps
+sudo systemctl status caddy
+
+# Check Caddy logs
+sudo journalctl -u caddy -f
 ```
 
 ## License
