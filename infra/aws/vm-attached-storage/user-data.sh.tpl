@@ -123,9 +123,9 @@ echo "=== Installing Caddy with S3 storage ==="
 apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
 
 # Install Go for xcaddy
-wget -q https://go.dev/dl/go1.22.0.linux-amd64.tar.gz
-tar -C /usr/local -xzf go1.22.0.linux-amd64.tar.gz
-rm go1.22.0.linux-amd64.tar.gz
+wget -q https://go.dev/dl/go1.25.5.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.25.5.linux-amd64.tar.gz
+rm go1.25.5.linux-amd64.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 export GOPATH=/root/go
 export GOCACHE=/root/.cache/go-build
