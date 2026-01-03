@@ -1,0 +1,6 @@
+services:
+  keycloak:
+    environment:
+      KC_HOSTNAME: ${domain_name}
+      KC_HOSTNAME_STRICT: "true"
+      KC_PROXY_HEADERS: "xforwarded"

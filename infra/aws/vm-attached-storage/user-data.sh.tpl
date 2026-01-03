@@ -111,6 +111,10 @@ ln -s .deploy-config .dev-config
 # Create docker-compose override for production Keycloak
 cat > docker-compose.override.yml << 'OVERRIDE'
 services:
+  postgres:
+    volumes:
+      - /data/postgres:/var/lib/postgresql/data
+      - ./docker/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
   keycloak:
     environment:
       KC_HOSTNAME: ${domain_name}
