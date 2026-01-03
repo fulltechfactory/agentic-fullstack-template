@@ -398,13 +398,6 @@ setup-deploy:
 		esac; \
 	fi; \
 	\
-	if [ -z "$(CADDY_BUCKET_NAME)" ]; then \
-		read -p "Caddy S3 bucket name: " caddy_bucket; \
-	else \
-		caddy_bucket="$(CADDY_BUCKET_NAME)"; \
-	fi; \
-	\
-	echo ""; \
 	echo "┌─ Infrastructure Settings ──────────────────"; \
 	echo "└──────────────────────────────────────────"; \
 	if [ -z "$(CLOUD_REGION)" ]; then \
@@ -636,8 +629,9 @@ setup-deploy:
 	echo ""; \
 	echo "Next steps:"; \
 	echo "  1. Review $(DEPLOY_CONFIG)"; \
-	echo "  2. Run 'make infra-plan' to preview infrastructure"; \
-	echo "  3. Run 'make infra-apply' to deploy"
+	echo "  2. Run 'make infra-init' to initialize OpenTofu"; \
+	echo "  3. Run 'make infra-plan' to preview infrastructure"; \
+	echo "  4. Run 'make infra-apply' to deploy"
 
 test-setup:
 	@./scripts/test-setup.sh
