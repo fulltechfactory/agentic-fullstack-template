@@ -1,24 +1,45 @@
 """
 Main FastAPI application with AG-UI integration and RAG support.
 """
-
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
 from agno.os import AgentOS
 from agno.os.interfaces.agui import AGUI
 from app.agents.assistant import create_assistant_agent
 from app.config.settings import settings
 
-# Initialize knowledge base if OpenAI is available (needed for embeddings)
-knowledge = None
+
+class UserContextMiddleware(BaseHTTPMiddleware):
+    """Middleware to set user context for knowledge search filtering."""
+    
+    async def dispatch(self, request: Request, call_next):
+        # Extract user info from headers
+        user_id = request.headers.get("X-User-ID", "")
+        user_groups_str = request.headers.get("X-User-Groups", "")
+        user_groups = [g.strip() for g in user_groups_str.split(",") if g.strip()]
+        
+        # Set context for knowledge search tool
+        if user_id:
+            from app.tools.knowledge_search import set_user_context
+            set_user_context(user_id, user_groups)
+        
+        response = await call_next(request)
+        return response
+
+
+# Check if knowledge/RAG should be enabled
+use_knowledge = False
 if settings.AI_PROVIDER == "openai" and settings.OPENAI_API_KEY:
     try:
         from app.knowledge.base import get_knowledge_base
         knowledge = get_knowledge_base()
-        print("[INFO] Knowledge base initialized")
+        use_knowledge = True
+        print("[INFO] Knowledge base initialized - RAG enabled with group filtering")
     except Exception as e:
         print(f"[WARNING] Could not initialize knowledge base: {e}")
 
-# Create the assistant agent
-assistant = create_assistant_agent(knowledge=knowledge)
+# Create the assistant agent with knowledge tool if available
+assistant = create_assistant_agent(use_knowledge_tool=use_knowledge)
 
 # Create AgentOS with AG-UI interface
 agent_os = AgentOS(
@@ -29,6 +50,9 @@ agent_os = AgentOS(
 # Get the FastAPI app
 app = agent_os.get_app()
 
+# Add user context middleware
+app.add_middleware(UserContextMiddleware)
+
 # Add knowledge API routes
 from app.api.knowledge import router as documents_router
 from app.api.admin import router as admin_router
@@ -37,6 +61,7 @@ from app.api.permissions import router as permissions_router
 from app.api.users import router as users_router
 from app.api.upload import router as upload_router
 from app.api.groups import router as groups_router
+
 app.include_router(documents_router)
 app.include_router(admin_router)
 app.include_router(kb_router)
@@ -53,7 +78,7 @@ async def health_check():
         "status": "healthy",
         "environment": settings.ENVIRONMENT,
         "ai_provider": settings.AI_PROVIDER,
-        "rag_enabled": knowledge is not None,
+        "rag_enabled": use_knowledge,
     }
 
 

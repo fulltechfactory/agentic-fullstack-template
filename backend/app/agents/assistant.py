@@ -22,17 +22,16 @@ def get_db() -> PostgresDb:
     )
 
 
-def create_assistant_agent(knowledge=None) -> Agent:
+def create_assistant_agent(use_knowledge_tool: bool = False) -> Agent:
     """
     Create the main assistant agent with session memory and optional RAG.
     
     Args:
-        knowledge: Optional knowledge base for RAG.
+        use_knowledge_tool: Whether to add the knowledge search tool.
     
     Returns:
         Agent: Configured Agno agent instance.
     """
-    
     instructions = [
         "You are a helpful AI assistant.",
         "Be concise and clear in your responses.",
@@ -41,13 +40,18 @@ def create_assistant_agent(knowledge=None) -> Agent:
         "Always respond in the same language as the user.",
     ]
     
-    # Add RAG-specific instructions if knowledge base is available
-    if knowledge:
+    tools = []
+    
+    # Add RAG tool if enabled
+    if use_knowledge_tool:
+        from app.tools.knowledge_search import search_knowledge_base
+        tools.append(search_knowledge_base)
+        
         instructions.extend([
             "",
             "## Knowledge Base Instructions",
             "You have access to a knowledge base containing company documents.",
-            "When answering questions, search the knowledge base for relevant information.",
+            "Use the search_knowledge_base tool to find relevant information when the user asks questions.",
             "ALWAYS cite your sources by mentioning the document name in your response.",
             "Format citations like this: 'According to [Document Name], ...' or 'Source: [Document Name]'",
             "If the knowledge base doesn't contain relevant information, say so clearly.",
@@ -61,9 +65,9 @@ def create_assistant_agent(knowledge=None) -> Agent:
         # Enable session memory
         add_history_to_context=True,
         num_history_runs=10,
-        # RAG configuration
-        knowledge=knowledge,
-        search_knowledge=True if knowledge else False,
+        # Use custom tool instead of built-in search_knowledge
+        tools=tools if tools else None,
+        search_knowledge=False,  # Disabled - we use custom tool
         instructions=instructions,
         markdown=False,
     )
