@@ -128,6 +128,8 @@ tar -C /usr/local -xzf go1.22.0.linux-amd64.tar.gz
 rm go1.22.0.linux-amd64.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 export GOPATH=/root/go
+export GOCACHE=/root/.cache/go-build
+export HOME=/root
 export PATH=$PATH:$GOPATH/bin
 
 # Install xcaddy and build Caddy with S3 module
