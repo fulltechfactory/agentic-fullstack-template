@@ -326,7 +326,7 @@ output "application_url" {
 
 output "ssh_command" {
   description = "SSH command to connect"
-  value       = var.ssh_public_key != "" ? "ssh ${var.admin_username}@${data.azurerm_public_ip.permanent.ip_address}" : "SSH disabled - use Azure Serial Console"
+  value       = length(var.allowed_ssh_cidrs) > 0 ? "ssh ${var.admin_username}@${data.azurerm_public_ip.permanent.ip_address}" : "SSH disabled - use Azure Serial Console"
 }
 
 output "generated_ssh_private_key" {
