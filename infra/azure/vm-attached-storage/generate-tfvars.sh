@@ -36,6 +36,13 @@ fi
 # Generate auth secret if not present
 AUTH_SECRET=$(openssl rand -base64 32)
 
+# Format SSH CIDRs for Terraform
+if [ -n "$SSH_ALLOWED_CIDRS" ]; then
+    SSH_CIDRS_TF="[\"$SSH_ALLOWED_CIDRS\"]"
+else
+    SSH_CIDRS_TF="[]"
+fi
+
 # Generate tfvars
 cat > "$TFVARS" << TFVARSEOF
 # =============================================================================
@@ -100,7 +107,7 @@ ai_api_key  = "$AI_API_KEY_VALUE"
 
 # Auth
 auth_secret = "$AUTH_SECRET"
-allowed_ssh_cidrs = []
+allowed_ssh_cidrs = $SSH_CIDRS_TF
 TFVARSEOF
 
 echo "[OK] Generated $TFVARS"

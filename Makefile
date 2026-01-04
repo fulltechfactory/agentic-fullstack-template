@@ -490,6 +490,18 @@ setup-deploy:
 		else \
 			azure_storage_container="$(AZURE_STORAGE_CONTAINER)"; \
 		fi; \
+		if [ -z "$(SSH_ALLOWED_CIDRS)" ]; then \
+			current_ip=$$(curl -s ifconfig.me 2>/dev/null); \
+			if [ -n "$$current_ip" ]; then \
+				default_ssh_cidrs="$$current_ip/32"; \
+			else \
+				default_ssh_cidrs=""; \
+			fi; \
+			read -p "SSH allowed CIDRs [$$default_ssh_cidrs]: " ssh_allowed_cidrs; \
+			ssh_allowed_cidrs=$${ssh_allowed_cidrs:-$$default_ssh_cidrs}; \
+		else \
+			ssh_allowed_cidrs="$(SSH_ALLOWED_CIDRS)"; \
+		fi; \
 	fi; \
 	\
 	if [ -z "$(AI_PROVIDER)" ]; then \
@@ -612,10 +624,12 @@ setup-deploy:
 		kc_admin_password="$(KEYCLOAK_ADMIN_PASSWORD)"; \
 	fi; \
 	\
-	if [ -z "$(CADDY_BUCKET_NAME)" ]; then \
-		read -p "Caddy S3 bucket name: " caddy_bucket; \
-	else \
-		caddy_bucket="$(CADDY_BUCKET_NAME)"; \
+	if [ "$$provider" = "aws" ]; then \
+		if [ -z "$(CADDY_BUCKET_NAME)" ]; then \
+			read -p "Caddy S3 bucket name: " caddy_bucket; \
+		else \
+			caddy_bucket="$(CADDY_BUCKET_NAME)"; \
+		fi; \
 	fi; \
 	\
 	echo ""; \
@@ -643,6 +657,7 @@ setup-deploy:
 		echo "AZURE_PUBLIC_IP_NAME=$$azure_public_ip_name" >> $(DEPLOY_CONFIG); \
 		echo "AZURE_STORAGE_ACCOUNT=$$azure_storage_account" >> $(DEPLOY_CONFIG); \
 		echo "AZURE_STORAGE_CONTAINER=$$azure_storage_container" >> $(DEPLOY_CONFIG); \
+		echo "SSH_ALLOWED_CIDRS=$$ssh_allowed_cidrs" >> $(DEPLOY_CONFIG); \
 	fi; \
 	echo "" >> $(DEPLOY_CONFIG); \
 	echo "# AI Provider" >> $(DEPLOY_CONFIG); \
@@ -685,8 +700,10 @@ setup-deploy:
 	echo "KEYCLOAK_ADMIN=$$kc_admin" >> $(DEPLOY_CONFIG); \
 	echo "KEYCLOAK_ADMIN_PASSWORD=$$kc_admin_password" >> $(DEPLOY_CONFIG); \
 	echo "" >> $(DEPLOY_CONFIG); \
-	echo "# Caddy S3 bucket" >> $(DEPLOY_CONFIG); \
-	echo "CADDY_BUCKET_NAME=$$caddy_bucket" >> $(DEPLOY_CONFIG); \
+	if [ "$$provider" = "aws" ]; then \
+		echo "# Caddy S3 bucket" >> $(DEPLOY_CONFIG); \
+		echo "CADDY_BUCKET_NAME=$$caddy_bucket" >> $(DEPLOY_CONFIG); \
+	fi; \
 	\
 	echo ""; \
 	echo "[OK] Production config saved to $(DEPLOY_CONFIG)"; \

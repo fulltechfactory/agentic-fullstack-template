@@ -183,6 +183,7 @@ make setup-deploy \
     AZURE_PUBLIC_IP_NAME=keystone-public-ip \
     AZURE_STORAGE_ACCOUNT=keystonecaddycerts \
     AZURE_STORAGE_CONTAINER=caddy \
+    SSH_ALLOWED_CIDRS=1.2.3.4/32 \
     AI_PROVIDER=openai \
     AI_API_KEY=sk-azure-test \
     POSTGRES_PASSWORD=super-secret-pg \
@@ -206,6 +207,7 @@ check_config_value .deploy-config "AZURE_PERMANENT_RG" "keystone-permanent-rg"
 check_config_value .deploy-config "AZURE_PUBLIC_IP_NAME" "keystone-public-ip"
 check_config_value .deploy-config "AZURE_STORAGE_ACCOUNT" "keystonecaddycerts"
 check_config_value .deploy-config "AZURE_STORAGE_CONTAINER" "caddy"
+check_config_value .deploy-config "SSH_ALLOWED_CIDRS" "1.2.3.4/32"
 check_config_value .deploy-config "POSTGRES_PASSWORD" "super-secret-pg"
 check_config_value .deploy-config "KEYSTONE_ADMIN" "adminuser"
 
@@ -247,6 +249,7 @@ make setup-deploy \
     AZURE_PUBLIC_IP_NAME=keystone-public-ip \
     AZURE_STORAGE_ACCOUNT=keystonecaddycerts \
     AZURE_STORAGE_CONTAINER=caddy \
+    SSH_ALLOWED_CIDRS=1.2.3.4/32 \
     AI_PROVIDER=anthropic \
     AI_API_KEY=sk-ant-prod \
     POSTGRES_PASSWORD=pg-k8s \
