@@ -261,6 +261,15 @@ cd infra/azure/vm-attached-storage
 tofu output -raw generated_ssh_private_key > ~/.ssh/azure-keystone.pem
 chmod 600 ~/.ssh/azure-keystone.pem
 
+# SSH port is not open by default, we must open it
+az network nsg rule create \
+  --resource-group [your_prod_ressource_group] \
+  --nsg-name [your_network_security_group_name] \
+  --name AllowSSH \
+  --priority 110 \
+  --destination-port-ranges 22 \
+  --protocol Tcp
+
 # Get public IP
 tofu output public_ip
 
