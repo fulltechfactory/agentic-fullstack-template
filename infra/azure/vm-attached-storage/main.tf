@@ -336,8 +336,3 @@ output "generated_ssh_private_key" {
 }
 
 
-variable "allowed_ssh_cidrs" {
-  description = "List of CIDRs allowed to SSH (empty = no SSH access)"
-  type        = list(string)
-  default     = []
-}

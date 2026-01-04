@@ -72,8 +72,6 @@ storage_account_name     = "$AZURE_STORAGE_ACCOUNT"
 storage_container_name   = "$AZURE_STORAGE_CONTAINER"
 
 # SSH access (optional - leave empty to disable)
-allowed_ssh_cidrs = []
-allowed_ssh_cidrs = []
 TFVARSEOF
 
 # Add SSH key if provided
