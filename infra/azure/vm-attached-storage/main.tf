@@ -335,8 +335,3 @@ output "generated_ssh_private_key" {
   sensitive   = true
 }
 
-output "generated_ssh_private_key" {
-  description = "Generated SSH private key (only if no key was provided)"
-  value       = module.compute.generated_ssh_private_key
-  sensitive   = true
-}
