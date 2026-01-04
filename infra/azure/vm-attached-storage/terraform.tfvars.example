@@ -1,0 +1,73 @@
+# =============================================================================
+# Keystone - Azure VM with Attached Storage
+# Copy this file to terraform.tfvars and fill in your values
+# =============================================================================
+
+# Azure Subscription
+subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Project
+project_name = "keystone"
+environment  = "prod"
+
+# Azure Region
+location = "francecentral"
+
+# Domain
+domain_name = "azure.example.com"
+
+# VM Size (Standard_D2s_v3 = 2 vCPU, 4GB RAM, ~$30/month)
+vm_size = "Standard_D2s_v3"
+
+# Admin username for SSH
+admin_username = "azureuser"
+
+# PostgreSQL data volume size (GB)
+postgres_volume_size = 20
+
+# =============================================================================
+# Permanent Resources (created manually, not managed by OpenTofu)
+# =============================================================================
+permanent_resource_group = "keystone-permanent-rg"
+public_ip_name           = "keystone-public-ip"
+storage_account_name     = "keystonecaddycerts"
+storage_container_name   = "caddy"
+
+# =============================================================================
+# SSH Access (optional)
+# Leave empty to disable SSH, use Azure Serial Console instead
+# =============================================================================
+allowed_ssh_cidrs = []
+# allowed_ssh_cidrs = ["YOUR_IP/32"]
+
+# SSH public key (optional - if empty, a key will be generated)
+ssh_public_key = ""
+# ssh_public_key = "ssh-rsa AAAAB3..."
+
+# =============================================================================
+# Database Credentials
+# IMPORTANT: Do NOT use @, :, /, or # in passwords
+# =============================================================================
+postgres_password     = "CHANGE_ME_postgres_super_secret"
+db_app_password       = "CHANGE_ME_app_secret"
+db_migration_password = "CHANGE_ME_migration_secret"
+db_keycloak_password  = "CHANGE_ME_keycloak_db_secret"
+
+# =============================================================================
+# Application Credentials
+# =============================================================================
+keystone_admin          = "adminuser"
+keystone_admin_password = "CHANGE_ME_keystone_admin"
+keycloak_admin_password = "CHANGE_ME_keycloak_admin"
+
+# =============================================================================
+# AI Provider
+# Options: openai, anthropic, gemini, mistral
+# =============================================================================
+ai_provider = "openai"
+ai_api_key  = "sk-your-openai-api-key"
+
+# =============================================================================
+# Auth Secret (generate with: openssl rand -base64 32)
+# =============================================================================
+auth_secret = "CHANGE_ME_generate_with_openssl"

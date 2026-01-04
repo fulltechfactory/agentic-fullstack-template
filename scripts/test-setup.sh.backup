@@ -171,44 +171,6 @@ check_config_value .deploy-config "KEYSTONE_ADMIN_PASSWORD" "ks-secret"
 check_config_value .deploy-config "KEYCLOAK_ADMIN" "admin"
 check_config_value .deploy-config "KEYCLOAK_ADMIN_PASSWORD" "admin-secret"
 
-log_test "setup-deploy with Azure VM + Attached Storage"
-cleanup
-make setup-deploy \
-    CLOUD_PROVIDER=azure \
-    CLOUD_REGION=francecentral \
-    INFRA_TYPE=vm-attached-storage \
-    DOMAIN_NAME=azure.example.com \
-    AZURE_SUBSCRIPTION_ID=00000000-0000-0000-0000-000000000000 \
-    AZURE_PERMANENT_RG=keystone-permanent-rg \
-    AZURE_PUBLIC_IP_NAME=keystone-public-ip \
-    AZURE_STORAGE_ACCOUNT=keystonecaddycerts \
-    AZURE_STORAGE_CONTAINER=caddy \
-    AI_PROVIDER=openai \
-    AI_API_KEY=sk-azure-test \
-    POSTGRES_PASSWORD=super-secret-pg \
-    DB_APP_PASSWORD=app-secret \
-    DB_MIGRATION_PASSWORD=mig-secret \
-    DB_KEYCLOAK_PASSWORD=kc-secret \
-    KEYSTONE_ADMIN=adminuser \
-    KEYSTONE_ADMIN_PASSWORD=ks-secret \
-    KEYCLOAK_ADMIN=admin \
-    KEYCLOAK_ADMIN_PASSWORD=admin-secret \
-    CADDY_BUCKET_NAME=not-used-for-azure \
-    > /dev/null 2>&1
-check_config_value .deploy-config "ENVIRONMENT" "prod"
-check_config_value .deploy-config "CLOUD_PROVIDER" "azure"
-check_config_value .deploy-config "CLOUD_REGION" "francecentral"
-check_config_value .deploy-config "INFRA_TYPE" "vm-attached-storage"
-check_config_value .deploy-config "DOMAIN_NAME" "azure.example.com"
-check_config_value .deploy-config "AI_PROVIDER" "openai"
-check_config_value .deploy-config "AZURE_SUBSCRIPTION_ID" "00000000-0000-0000-0000-000000000000"
-check_config_value .deploy-config "AZURE_PERMANENT_RG" "keystone-permanent-rg"
-check_config_value .deploy-config "AZURE_PUBLIC_IP_NAME" "keystone-public-ip"
-check_config_value .deploy-config "AZURE_STORAGE_ACCOUNT" "keystonecaddycerts"
-check_config_value .deploy-config "AZURE_STORAGE_CONTAINER" "caddy"
-check_config_value .deploy-config "POSTGRES_PASSWORD" "super-secret-pg"
-check_config_value .deploy-config "KEYSTONE_ADMIN" "adminuser"
-
 log_test "setup-deploy with GCP VM + Managed Postgres"
 cleanup
 make setup-deploy \
@@ -242,11 +204,6 @@ make setup-deploy \
     CLOUD_REGION=westeurope \
     INFRA_TYPE=k8s-managed-postgres \
     DOMAIN_NAME=azure.example.com \
-    AZURE_SUBSCRIPTION_ID=00000000-0000-0000-0000-000000000000 \
-    AZURE_PERMANENT_RG=keystone-permanent-rg \
-    AZURE_PUBLIC_IP_NAME=keystone-public-ip \
-    AZURE_STORAGE_ACCOUNT=keystonecaddycerts \
-    AZURE_STORAGE_CONTAINER=caddy \
     AI_PROVIDER=anthropic \
     AI_API_KEY=sk-ant-prod \
     POSTGRES_PASSWORD=pg-k8s \

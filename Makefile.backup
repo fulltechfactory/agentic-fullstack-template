@@ -37,13 +37,6 @@ KEYCLOAK_ADMIN ?=
 KEYCLOAK_ADMIN_PASSWORD ?=
 CADDY_BUCKET_NAME ?=
 
-# Azure specific
-AZURE_SUBSCRIPTION_ID ?=
-AZURE_PERMANENT_RG ?=
-AZURE_PUBLIC_IP_NAME ?=
-AZURE_STORAGE_ACCOUNT ?=
-AZURE_STORAGE_CONTAINER ?=
-
 help:
 	@echo "Available commands:"
 	@echo "  make setup-dev     - Configure local development environment"
@@ -435,42 +428,6 @@ setup-deploy:
 		elastic_ip_alloc_id="$(ELASTIC_IP_ALLOC_ID)"; \
 	fi; \
 	\
-	if [ "$$provider" = "azure" ]; then \
-		if [ -z "$(AZURE_SUBSCRIPTION_ID)" ]; then \
-			azure_sub_id=$$(az account show --query id -o tsv 2>/dev/null); \
-			if [ -z "$$azure_sub_id" ]; then \
-				read -p "Azure Subscription ID: " azure_sub_id; \
-			else \
-				echo "Using Azure Subscription: $$azure_sub_id"; \
-			fi; \
-		else \
-			azure_sub_id="$(AZURE_SUBSCRIPTION_ID)"; \
-		fi; \
-		if [ -z "$(AZURE_PERMANENT_RG)" ]; then \
-			read -p "Permanent Resource Group [keystone-permanent-rg]: " azure_permanent_rg; \
-			azure_permanent_rg=$${azure_permanent_rg:-keystone-permanent-rg}; \
-		else \
-			azure_permanent_rg="$(AZURE_PERMANENT_RG)"; \
-		fi; \
-		if [ -z "$(AZURE_PUBLIC_IP_NAME)" ]; then \
-			read -p "Public IP name [keystone-public-ip]: " azure_public_ip_name; \
-			azure_public_ip_name=$${azure_public_ip_name:-keystone-public-ip}; \
-		else \
-			azure_public_ip_name="$(AZURE_PUBLIC_IP_NAME)"; \
-		fi; \
-		if [ -z "$(AZURE_STORAGE_ACCOUNT)" ]; then \
-			read -p "Storage Account name: " azure_storage_account; \
-		else \
-			azure_storage_account="$(AZURE_STORAGE_ACCOUNT)"; \
-		fi; \
-		if [ -z "$(AZURE_STORAGE_CONTAINER)" ]; then \
-			read -p "Storage Container [caddy]: " azure_storage_container; \
-			azure_storage_container=$${azure_storage_container:-caddy}; \
-		else \
-			azure_storage_container="$(AZURE_STORAGE_CONTAINER)"; \
-		fi; \
-	fi; \
-	\
 	if [ -z "$(AI_PROVIDER)" ]; then \
 		echo ""; \
 		echo "┌─ AI Provider ──────────────────────────────"; \
@@ -614,15 +571,6 @@ setup-deploy:
 	if [ -n "$$elastic_ip_alloc_id" ]; then \
 		echo "ELASTIC_IP_ALLOC_ID=$$elastic_ip_alloc_id" >> $(DEPLOY_CONFIG); \
 	fi; \
-	if [ "$$provider" = "azure" ]; then \
-		echo "" >> $(DEPLOY_CONFIG); \
-		echo "# Azure Specific" >> $(DEPLOY_CONFIG); \
-		echo "AZURE_SUBSCRIPTION_ID=$$azure_sub_id" >> $(DEPLOY_CONFIG); \
-		echo "AZURE_PERMANENT_RG=$$azure_permanent_rg" >> $(DEPLOY_CONFIG); \
-		echo "AZURE_PUBLIC_IP_NAME=$$azure_public_ip_name" >> $(DEPLOY_CONFIG); \
-		echo "AZURE_STORAGE_ACCOUNT=$$azure_storage_account" >> $(DEPLOY_CONFIG); \
-		echo "AZURE_STORAGE_CONTAINER=$$azure_storage_container" >> $(DEPLOY_CONFIG); \
-	fi; \
 	echo "" >> $(DEPLOY_CONFIG); \
 	echo "# AI Provider" >> $(DEPLOY_CONFIG); \
 	echo "AI_PROVIDER=$$ai_provider" >> $(DEPLOY_CONFIG); \
@@ -676,11 +624,6 @@ setup-deploy:
 	echo "  Domain: $$domain_name"; \
 	if [ -n "$$elastic_ip" ]; then \
 		echo "  Elastic IP: $$elastic_ip"; \
-	fi; \
-	if [ "$$provider" = "azure" ]; then \
-		echo "  Subscription: $$azure_sub_id"; \
-		echo "  Permanent RG: $$azure_permanent_rg"; \
-		echo "  Storage Account: $$azure_storage_account"; \
 	fi; \
 	echo "  AI Provider: $$ai_provider"; \
 	echo ""; \
