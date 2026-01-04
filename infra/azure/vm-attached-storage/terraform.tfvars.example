@@ -71,3 +71,7 @@ ai_api_key  = "sk-your-openai-api-key"
 # Auth Secret (generate with: openssl rand -base64 32)
 # =============================================================================
 auth_secret = "CHANGE_ME_generate_with_openssl"
+
+# SSH Access (optional - list of CIDRs, empty = no SSH)
+# Example: ["1.2.3.4/32", "10.0.0.0/8"]
+allowed_ssh_cidrs = []

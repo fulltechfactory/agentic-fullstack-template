@@ -73,6 +73,7 @@ storage_container_name   = "$AZURE_STORAGE_CONTAINER"
 
 # SSH access (optional - leave empty to disable)
 allowed_ssh_cidrs = []
+allowed_ssh_cidrs = []
 TFVARSEOF
 
 # Add SSH key if provided
@@ -101,6 +102,7 @@ ai_api_key  = "$AI_API_KEY_VALUE"
 
 # Auth
 auth_secret = "$AUTH_SECRET"
+allowed_ssh_cidrs = []
 TFVARSEOF
 
 echo "[OK] Generated $TFVARS"
