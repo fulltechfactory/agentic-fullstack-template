@@ -34,3 +34,4 @@ logs/
 .dev-config
 .staging-config
 .deploy-config
+*.backup
