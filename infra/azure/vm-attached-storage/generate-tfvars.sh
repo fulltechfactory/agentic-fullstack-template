@@ -57,7 +57,7 @@ location = "$CLOUD_REGION"
 domain_name = "$DOMAIN_NAME"
 
 # VM Size
-vm_size = "Standard_B2s"
+vm_size = "Standard_D2s_v3"
 
 # Admin
 admin_username = "azureuser"

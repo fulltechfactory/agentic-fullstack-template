@@ -319,6 +319,7 @@ systemctl start keystone-frontend
 
 # Upload initial certificates (after Caddy has obtained them)
 sleep 60
+systemctl reload caddy
 /usr/local/bin/caddy-cert-upload || echo "Certificate upload will happen on next cron run"
 
 echo "=== Keystone setup complete on Azure $(date) ==="
