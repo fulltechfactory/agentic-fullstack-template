@@ -65,7 +65,7 @@ resource "aws_ebs_volume" "postgres_data" {
   }
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
