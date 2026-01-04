@@ -264,6 +264,9 @@ chmod 600 ~/.ssh/azure-keystone.pem
 # Get public IP
 tofu output public_ip
 
+# Supprimer l'ancienne clé known_hosts
+ssh-keygen -R [public_ip]
+
 # Connect via SSH
 ssh -i ~/.ssh/azure-keystone.pem azureuser@<public-ip>
 
