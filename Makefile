@@ -491,7 +491,7 @@ setup-deploy:
 			azure_storage_container="$(AZURE_STORAGE_CONTAINER)"; \
 		fi; \
 		if [ -z "$(SSH_ALLOWED_CIDRS)" ]; then \
-			current_ip=$$(curl -s ifconfig.me 2>/dev/null); \
+			current_ip=$$(curl -4 -s ifconfig.me 2>/dev/null); \
 			if [ -n "$$current_ip" ]; then \
 				default_ssh_cidrs="$$current_ip/32"; \
 			else \
