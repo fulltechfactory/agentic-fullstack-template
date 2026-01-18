@@ -22,6 +22,7 @@ class Settings:
     
     # AI Provider
     AI_PROVIDER: str = os.getenv("AI_PROVIDER", "openai")
+    AI_MODEL: str = os.getenv("AI_MODEL", "")  # Model ID (optional, uses provider default if empty)
     AI_URL: str = os.getenv("AI_URL", "")
     
     # API Keys
@@ -54,6 +55,12 @@ class Settings:
     # Server
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", "8000"))
+
+    # Web Search Configuration (for DuckDuckGo fallback)
+    WEB_SEARCH_ENABLED: bool = os.getenv("WEB_SEARCH_ENABLED", "true").lower() == "true"
+    WEB_SEARCH_NUM_RESULTS: int = int(os.getenv("WEB_SEARCH_NUM_RESULTS", "5"))
+    WEB_SEARCH_TIMEOUT: float = float(os.getenv("WEB_SEARCH_TIMEOUT", "10.0"))
+    WEB_SEARCH_DELAY: float = float(os.getenv("WEB_SEARCH_DELAY", "0.5"))
 
 
 settings = Settings()

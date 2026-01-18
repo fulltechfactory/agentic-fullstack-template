@@ -38,8 +38,17 @@ if settings.AI_PROVIDER == "openai" and settings.OPENAI_API_KEY:
     except Exception as e:
         print(f"[WARNING] Could not initialize knowledge base: {e}")
 
-# Create the assistant agent with knowledge tool if available
-assistant = create_assistant_agent(use_knowledge_tool=use_knowledge)
+# Check if web search should be enabled
+use_web_search = False
+if settings.WEB_SEARCH_ENABLED:
+    use_web_search = True
+    print(f"[INFO] Web search enabled (DuckDuckGo)")
+
+# Create the assistant agent with available tools
+assistant = create_assistant_agent(
+    use_knowledge_tool=use_knowledge,
+    use_web_search=use_web_search,
+)
 
 # Create AgentOS with AG-UI interface
 agent_os = AgentOS(
@@ -79,6 +88,7 @@ async def health_check():
         "environment": settings.ENVIRONMENT,
         "ai_provider": settings.AI_PROVIDER,
         "rag_enabled": use_knowledge,
+        "web_search_enabled": use_web_search,
     }
 
 
