@@ -5,39 +5,48 @@ import {
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
 import { NextRequest } from "next/server";
-import { auth } from "@/auth";
 
 const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
+console.log("[CopilotKit] Backend URL:", backendUrl);
+
+// Create agent at module level (required for CopilotRuntime)
+const agent = new HttpAgent({
+  url: `${backendUrl}/agui`,
+  agentId: "agent",
+});
+
+// Log when agent is created
+console.log("[CopilotKit] HttpAgent created with URL:", `${backendUrl}/agui`);
+
+// Create runtime at module level
+const runtime = new CopilotRuntime({
+  agents: {
+    agent,
+  },
+});
+
+const serviceAdapter = new ExperimentalEmptyAdapter();
 
 export const POST = async (req: NextRequest) => {
-  // Get user session
-  const session = await auth();
-  
-  // Prepare headers with user context
-  const headers: Record<string, string> = {};
-  if (session?.user) {
-    headers["X-User-ID"] = session.user.id || "";
-    headers["X-User-Groups"] = (session.user.groups || []).join(",");
-    headers["X-User-Roles"] = (session.user.roles || []).join(",");
-  }
-  
-  // Create agent with user headers
-  const agent = new HttpAgent({
-    url: `${backendUrl}/agui`,
-    headers,
-  });
-
-  const runtime = new CopilotRuntime({
-    agents: {
-      agent,
-    },
-  });
+  // Clone request to read body for logging
+  const clonedReq = req.clone();
+  const body = await clonedReq.text();
+  console.log("[CopilotKit] Incoming request body:", body.substring(0, 500));
 
   const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
     runtime,
-    serviceAdapter: new ExperimentalEmptyAdapter(),
+    serviceAdapter,
     endpoint: "/api/copilotkit",
   });
 
-  return handleRequest(req);
+  try {
+    console.log("[CopilotKit] Calling handleRequest...");
+    const response = await handleRequest(req);
+    console.log("[CopilotKit] Response status:", response.status);
+    console.log("[CopilotKit] Response headers:", Object.fromEntries(response.headers.entries()));
+    return response;
+  } catch (error) {
+    console.error("[CopilotKit] Error in handleRequest:", error);
+    throw error;
+  }
 };

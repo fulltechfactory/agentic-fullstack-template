@@ -19,7 +19,7 @@ def get_knowledge_base() -> Knowledge:
         db_url=settings.DATABASE_URL_BASE,
         schema=settings.DB_APP_SCHEMA,
         search_type=SearchType.hybrid,
-        create_schema=False,  # Schema already exists
+        create_schema=False,  # Table created by migration with custom columns
     )
     
     return Knowledge(

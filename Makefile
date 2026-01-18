@@ -7,6 +7,7 @@ DEPLOY_CONFIG := .deploy-config
 # Default values (can be overridden via command line or environment)
 AI_PROVIDER ?=
 AI_API_KEY ?=
+AI_MODEL ?=
 AI_URL ?=
 CLOUD_PROVIDER ?=
 
@@ -144,17 +145,22 @@ setup-dev:
 			echo ""; \
 		else \
 			if [ "$$ai_provider" = "ollama" ]; then \
-				default_url="http://localhost:11434"; \
+				default_url="http://host.docker.internal:11434"; \
+				default_model="llama3.2"; \
 			else \
-				default_url="http://localhost:1234"; \
+				default_url="http://host.docker.internal:1234"; \
+				default_model="local-model"; \
 			fi; \
 			echo ""; \
 			read -p "Enter $$ai_provider URL [$$default_url]: " ai_url; \
 			ai_url=$${ai_url:-$$default_url}; \
+			read -p "Enter model name [$$default_model]: " ai_model; \
+			ai_model=$${ai_model:-$$default_model}; \
 		fi; \
 	else \
 		ai_provider="$(AI_PROVIDER)"; \
 		ai_api_key="$(AI_API_KEY)"; \
+		ai_model="$(AI_MODEL)"; \
 		ai_url="$(AI_URL)"; \
 		case $$ai_provider in \
 			openai) ai_key_name="OPENAI_API_KEY";; \
@@ -166,9 +172,9 @@ setup-dev:
 		esac; \
 		if [ -z "$$ai_key_name" ] && [ -z "$$ai_url" ]; then \
 			if [ "$$ai_provider" = "ollama" ]; then \
-				ai_url="http://localhost:11434"; \
+				ai_url="http://host.docker.internal:11434"; \
 			else \
-				ai_url="http://localhost:1234"; \
+				ai_url="http://host.docker.internal:1234"; \
 			fi; \
 		fi; \
 	fi; \
@@ -185,6 +191,9 @@ setup-dev:
 	fi; \
 	if [ -n "$$ai_url" ]; then \
 		echo "AI_URL=$$ai_url" >> $(DEV_CONFIG); \
+	fi; \
+	if [ -n "$$ai_model" ]; then \
+		echo "AI_MODEL=$$ai_model" >> $(DEV_CONFIG); \
 	fi; \
 	echo "" >> $(DEV_CONFIG); \
 	echo "# PostgreSQL Superuser" >> $(DEV_CONFIG); \

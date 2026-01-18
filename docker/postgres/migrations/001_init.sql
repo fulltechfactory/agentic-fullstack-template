@@ -25,23 +25,24 @@ COMMENT ON TABLE app.knowledge_bases IS 'Knowledge bases linked to Keycloak grou
 COMMENT ON COLUMN app.knowledge_bases.group_name IS 'Keycloak group that owns this KB (e.g., /COMPANY, /RH)';
 
 -- -----------------------------------------------------------------------------
--- Knowledge Embeddings - Add knowledge_base_id column
--- (Table is created by Agno, we just add our column)
+-- Knowledge Embeddings
+-- Table structure compatible with Agno PgVector + custom knowledge_base_id
 -- -----------------------------------------------------------------------------
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_schema = 'app' 
-        AND table_name = 'knowledge_embeddings' 
-        AND column_name = 'knowledge_base_id'
-    ) THEN
-        ALTER TABLE app.knowledge_embeddings 
-        ADD COLUMN knowledge_base_id UUID REFERENCES app.knowledge_bases(id) ON DELETE CASCADE;
-        
-        CREATE INDEX idx_ke_knowledge_base_id ON app.knowledge_embeddings(knowledge_base_id);
-    END IF;
-END $$;
+CREATE TABLE IF NOT EXISTS app.knowledge_embeddings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255),
+    content TEXT,
+    embedding vector(1536),
+    meta_data JSONB,
+    created_at TIMESTAMP DEFAULT NOW(),
+    knowledge_base_id UUID REFERENCES app.knowledge_bases(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_ke_knowledge_base_id ON app.knowledge_embeddings(knowledge_base_id);
+CREATE INDEX IF NOT EXISTS idx_ke_embedding ON app.knowledge_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+
+COMMENT ON TABLE app.knowledge_embeddings IS 'Document embeddings for RAG with group-based filtering';
+COMMENT ON COLUMN app.knowledge_embeddings.knowledge_base_id IS 'Links embedding to a knowledge base for multi-tenancy';
 
 -- -----------------------------------------------------------------------------
 -- Knowledge Base Permissions
