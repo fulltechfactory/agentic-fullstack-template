@@ -55,12 +55,13 @@ help:
 	@echo "  make test-setup    - Run automated tests for setup commands"
 	@echo ""
 	@echo "Docker commands (dev):"
-	@echo "  make dev-up        - Start development environment"
-	@echo "  make dev-down      - Stop development environment"
-	@echo "  make dev-logs      - Show container logs"
-	@echo "  make dev-ps        - Show container status"
-	@echo "  make dev-clean     - Remove all data and volumes"
-	@echo "  make db-migrate    - Run database migrations"
+	@echo "  make dev-up            - Start development environment"
+	@echo "  make dev-down          - Stop development environment"
+	@echo "  make dev-logs          - Show container logs"
+	@echo "  make dev-ps            - Show container status"
+	@echo "  make dev-clean         - Remove all data and volumes"
+	@echo "  make db-migrate        - Run database migrations"
+	@echo "  make reindex-documents - Reindex all documents (after provider change)"
 	@echo ""
 	@echo "Frontend commands:"
 	@echo "  make frontend         - Start frontend development server"
@@ -743,7 +744,7 @@ test-setup:
 # ============================================================
 # DOCKER COMMANDS
 # ============================================================
-.PHONY: dev-up dev-down dev-logs dev-ps dev-clean
+.PHONY: dev-up dev-down dev-logs dev-ps dev-clean reindex-documents
 
 dev-up:
 	@if [ ! -f $(DEV_CONFIG) ]; then \
@@ -784,6 +785,10 @@ dev-clean:
 	else \
 		echo "[INFO] Cancelled"; \
 	fi
+
+reindex-documents:
+	@echo "[INFO] Reindexing documents with current embedding configuration..."
+	@curl -s -X POST http://localhost:8000/api/admin/reindex | python3 -m json.tool || echo "[FAIL] Backend not running or reindex failed"
 
 # ============================================================
 # FRONTEND ENV GENERATION

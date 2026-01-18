@@ -27,6 +27,7 @@ COMMENT ON COLUMN app.knowledge_bases.group_name IS 'Keycloak group that owns th
 -- -----------------------------------------------------------------------------
 -- Knowledge Embeddings
 -- Table structure compatible with Agno PgVector + custom knowledge_base_id
+-- Note: Agno may create this table before migration runs, so we handle both cases
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS app.knowledge_embeddings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -37,6 +38,20 @@ CREATE TABLE IF NOT EXISTS app.knowledge_embeddings (
     created_at TIMESTAMP DEFAULT NOW(),
     knowledge_base_id UUID REFERENCES app.knowledge_bases(id) ON DELETE CASCADE
 );
+
+-- Add knowledge_base_id column if table was created by Agno without it
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'app'
+        AND table_name = 'knowledge_embeddings'
+        AND column_name = 'knowledge_base_id'
+    ) THEN
+        ALTER TABLE app.knowledge_embeddings
+        ADD COLUMN knowledge_base_id UUID REFERENCES app.knowledge_bases(id) ON DELETE CASCADE;
+    END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_ke_knowledge_base_id ON app.knowledge_embeddings(knowledge_base_id);
 CREATE INDEX IF NOT EXISTS idx_ke_embedding ON app.knowledge_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
@@ -62,6 +77,37 @@ CREATE INDEX IF NOT EXISTS idx_kbp_user_id ON app.knowledge_base_permissions(use
 
 COMMENT ON TABLE app.knowledge_base_permissions IS 'Explicit permissions for KB access';
 COMMENT ON COLUMN app.knowledge_base_permissions.permission IS 'WRITE: manage docs, READ: cross-group access';
+
+-- -----------------------------------------------------------------------------
+-- Embedding Configuration (singleton)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS app.embedding_config (
+    id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    provider VARCHAR(50) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    dimensions INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+COMMENT ON TABLE app.embedding_config IS 'Stores current embedding configuration (singleton)';
+COMMENT ON COLUMN app.embedding_config.provider IS 'Embedding provider (openai, gemini, mistral, ollama, lmstudio)';
+COMMENT ON COLUMN app.embedding_config.model IS 'Embedding model ID';
+COMMENT ON COLUMN app.embedding_config.dimensions IS 'Vector dimensions for the embedding model';
+
+-- -----------------------------------------------------------------------------
+-- Function to update embedding column dimension
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION app.update_embedding_dimension(new_dimensions INTEGER)
+RETURNS VOID AS $$
+BEGIN
+    DROP INDEX IF EXISTS app.idx_ke_embedding;
+    TRUNCATE TABLE app.knowledge_embeddings;
+    EXECUTE format('ALTER TABLE app.knowledge_embeddings ALTER COLUMN embedding TYPE vector(%s)', new_dimensions);
+    CREATE INDEX idx_ke_embedding ON app.knowledge_embeddings
+        USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+END;
+$$ LANGUAGE plpgsql;
 
 -- -----------------------------------------------------------------------------
 -- Initial Data: Company Knowledge Base

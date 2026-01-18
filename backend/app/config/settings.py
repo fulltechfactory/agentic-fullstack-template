@@ -22,8 +22,11 @@ class Settings:
     
     # AI Provider
     AI_PROVIDER: str = os.getenv("AI_PROVIDER", "openai")
-    AI_MODEL: str = os.getenv("AI_MODEL", "")  # Model ID (optional, uses provider default if empty)
-    AI_URL: str = os.getenv("AI_URL", "")
+    AI_MODEL: str = os.getenv("AI_MODEL", "")  # Chat model ID (optional, uses provider default)
+    AI_URL: str = os.getenv("AI_URL", "")  # Custom URL for local providers (Ollama, LM Studio)
+
+    # Embedding Model (for RAG)
+    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "")  # Embedding model ID (optional, uses provider default)
     
     # API Keys
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")

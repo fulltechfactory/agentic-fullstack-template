@@ -29,14 +29,24 @@ class UserContextMiddleware(BaseHTTPMiddleware):
 
 # Check if knowledge/RAG should be enabled
 use_knowledge = False
-if settings.AI_PROVIDER == "openai" and settings.OPENAI_API_KEY:
-    try:
-        from app.knowledge.base import get_knowledge_base
-        knowledge = get_knowledge_base()
+embedding_provider = None
+
+try:
+    from app.config.embedders import get_embedder
+    from app.knowledge.base import get_knowledge_base
+
+    embedder, embedding_provider, dimensions = get_embedder()
+
+    if embedder is None:
+        # embedding_provider contains error message when embedder is None
+        print(f"[ERROR] RAG disabled: {embedding_provider}")
+    else:
+        knowledge = get_knowledge_base(embedder=embedder)
         use_knowledge = True
-        print("[INFO] Knowledge base initialized - RAG enabled with group filtering")
-    except Exception as e:
-        print(f"[WARNING] Could not initialize knowledge base: {e}")
+        print(f"[INFO] RAG enabled with {embedding_provider} embeddings ({dimensions} dimensions)")
+
+except Exception as e:
+    print(f"[WARNING] Could not initialize knowledge base: {e}")
 
 # Check if web search should be enabled
 use_web_search = False
@@ -87,6 +97,7 @@ async def health_check():
         "status": "healthy",
         "environment": settings.ENVIRONMENT,
         "ai_provider": settings.AI_PROVIDER,
+        "embedding_provider": embedding_provider if use_knowledge else None,
         "rag_enabled": use_knowledge,
         "web_search_enabled": use_web_search,
     }

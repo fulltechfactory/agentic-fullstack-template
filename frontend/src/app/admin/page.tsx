@@ -5,15 +5,17 @@ import { useSession } from "next-auth/react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Activity, 
-  Database, 
-  Users, 
-  FileText, 
+import {
+  Activity,
+  Database,
+  Users,
+  FileText,
   Server,
   CheckCircle,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  Cpu,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -35,12 +37,24 @@ interface Health {
   ai_provider: string;
 }
 
+interface EmbeddingConfig {
+  provider: string;
+  model: string;
+  dimensions: number;
+  status: string;
+  needs_reindex: boolean;
+  message: string | null;
+}
+
 export default function AdminPage() {
   const { data: session, status } = useSession();
   const [stats, setStats] = useState<Stats | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
+  const [embeddingConfig, setEmbeddingConfig] = useState<EmbeddingConfig | null>(null);
   const [recentSessions, setRecentSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reindexing, setReindexing] = useState(false);
+  const [reindexResult, setReindexResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
@@ -65,10 +79,43 @@ export default function AdminPage() {
         const healthData = await healthRes.json();
         setHealth(healthData.health);
       }
+
+      // Fetch embedding config
+      const embeddingRes = await fetch("/api/admin/embedding-config");
+      if (embeddingRes.ok) {
+        const embeddingData = await embeddingRes.json();
+        setEmbeddingConfig(embeddingData);
+      }
     } catch (e) {
       setError("Network error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReindex = async () => {
+    if (!confirm("This will re-embed all documents with the current embedding provider. Continue?")) {
+      return;
+    }
+
+    setReindexing(true);
+    setReindexResult(null);
+
+    try {
+      const res = await fetch("/api/admin/reindex", { method: "POST" });
+      const data = await res.json();
+
+      if (res.ok) {
+        setReindexResult(`Success: ${data.message}`);
+        // Refresh data
+        fetchData();
+      } else {
+        setReindexResult(`Error: ${data.detail || "Reindex failed"}`);
+      }
+    } catch (e) {
+      setReindexResult("Network error during reindex");
+    } finally {
+      setReindexing(false);
     }
   };
 
@@ -201,6 +248,63 @@ export default function AdminPage() {
                     )}
                   </div>
                 </div>
+              </div>
+            </section>
+
+            {/* Embedding Configuration */}
+            <section>
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Cpu className="h-5 w-5" />
+                Embedding Configuration
+              </h2>
+              <div className="p-4 border rounded-lg bg-card space-y-4">
+                {embeddingConfig ? (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <span className="text-sm text-muted-foreground">Provider</span>
+                        <p className="font-medium">{embeddingConfig.provider}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground">Model</span>
+                        <p className="font-medium">{embeddingConfig.model}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground">Dimensions</span>
+                        <p className="font-medium">{embeddingConfig.dimensions}</p>
+                      </div>
+                    </div>
+
+                    {embeddingConfig.needs_reindex && (
+                      <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200">
+                        <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium">Reindex Required</p>
+                          <p className="text-sm">{embeddingConfig.message}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {reindexResult && (
+                      <div className={`p-3 rounded-lg ${reindexResult.startsWith("Success") ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200" : "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200"}`}>
+                        {reindexResult}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleReindex}
+                        disabled={reindexing}
+                        variant={embeddingConfig.needs_reindex ? "default" : "outline"}
+                      >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${reindexing ? "animate-spin" : ""}`} />
+                        {reindexing ? "Reindexing..." : "Reindex Documents"}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-muted-foreground">Loading embedding configuration...</div>
+                )}
               </div>
             </section>
 
