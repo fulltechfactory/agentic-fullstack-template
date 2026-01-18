@@ -65,5 +65,10 @@ class Settings:
     WEB_SEARCH_TIMEOUT: float = float(os.getenv("WEB_SEARCH_TIMEOUT", "10.0"))
     WEB_SEARCH_DELAY: float = float(os.getenv("WEB_SEARCH_DELAY", "0.5"))
 
+    # RAG Chunking Configuration
+    CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1000"))  # Characters per chunk
+    CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "200"))  # Overlap between chunks
+    CHUNK_MIN_SIZE: int = int(os.getenv("CHUNK_MIN_SIZE", "100"))  # Minimum chunk size
+
 
 settings = Settings()
