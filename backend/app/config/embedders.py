@@ -9,13 +9,13 @@ from agno.knowledge.embedder.base import Embedder
 from app.config.settings import settings
 
 
-# Embedding dimensions for each provider
+# Embedding dimensions for each provider (defaults)
 EMBEDDING_DIMENSIONS = {
     "openai": 1536,      # text-embedding-3-small
     "gemini": 768,       # text-embedding-004
     "mistral": 1024,     # mistral-embed
     "ollama": 768,       # nomic-embed-text (default)
-    "lmstudio": 1536,    # depends on model, default to OpenAI-compatible
+    "lmstudio": 768,     # nomic-embed-text (default for local)
     "anthropic": 1536,   # fallback to OpenAI
 }
 
