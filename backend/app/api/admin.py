@@ -237,6 +237,20 @@ async def reindex_documents():
 
             doc_count = len(documents)
 
+            # Check if dimensions need to be updated
+            stored_config = conn.execute(
+                text(f"SELECT dimensions FROM {settings.DB_APP_SCHEMA}.embedding_config WHERE id = 1")
+            ).fetchone()
+            stored_dimensions = stored_config[0] if stored_config else None
+
+            # Update dimensions if changed (even with no documents)
+            if stored_dimensions != current_dimensions:
+                conn.execute(
+                    text(f"SELECT {settings.DB_APP_SCHEMA}.update_embedding_dimension(:dimensions)"),
+                    {"dimensions": current_dimensions}
+                )
+                conn.commit()
+
             if doc_count == 0:
                 # No documents to reindex - just update config
                 conn.execute(
@@ -257,7 +271,7 @@ async def reindex_documents():
                     status="success",
                     documents_reindexed=0,
                     new_config={"provider": provider, "model": current_model, "dimensions": current_dimensions},
-                    message="No documents to reindex. Embedding config updated.",
+                    message="No documents to reindex. Embedding config and dimensions updated.",
                 )
 
             # Collect document data before truncating

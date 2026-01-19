@@ -30,18 +30,23 @@ COMMENT ON COLUMN app.knowledge_bases.group_name IS 'Keycloak group that owns th
 -- Note: Agno may create this table before migration runs, so we handle both cases
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS app.knowledge_embeddings (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id VARCHAR(255) PRIMARY KEY,
     name VARCHAR(255),
     content TEXT,
     embedding vector(1536),
     meta_data JSONB,
+    filters JSONB,
+    usage JSONB,
+    content_hash VARCHAR(64),
+    content_id VARCHAR(255),
     created_at TIMESTAMP DEFAULT NOW(),
     knowledge_base_id UUID REFERENCES app.knowledge_bases(id) ON DELETE CASCADE
 );
 
--- Add knowledge_base_id column if table was created by Agno without it
+-- Add columns if table was created by Agno without them
 DO $$
 BEGIN
+    -- Add knowledge_base_id
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'app'
@@ -51,9 +56,50 @@ BEGIN
         ALTER TABLE app.knowledge_embeddings
         ADD COLUMN knowledge_base_id UUID REFERENCES app.knowledge_bases(id) ON DELETE CASCADE;
     END IF;
+
+    -- Add filters
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'app'
+        AND table_name = 'knowledge_embeddings'
+        AND column_name = 'filters'
+    ) THEN
+        ALTER TABLE app.knowledge_embeddings ADD COLUMN filters JSONB;
+    END IF;
+
+    -- Add usage
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'app'
+        AND table_name = 'knowledge_embeddings'
+        AND column_name = 'usage'
+    ) THEN
+        ALTER TABLE app.knowledge_embeddings ADD COLUMN usage JSONB;
+    END IF;
+
+    -- Add content_hash
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'app'
+        AND table_name = 'knowledge_embeddings'
+        AND column_name = 'content_hash'
+    ) THEN
+        ALTER TABLE app.knowledge_embeddings ADD COLUMN content_hash VARCHAR(64);
+    END IF;
+
+    -- Add content_id
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'app'
+        AND table_name = 'knowledge_embeddings'
+        AND column_name = 'content_id'
+    ) THEN
+        ALTER TABLE app.knowledge_embeddings ADD COLUMN content_id VARCHAR(255);
+    END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_ke_knowledge_base_id ON app.knowledge_embeddings(knowledge_base_id);
+CREATE INDEX IF NOT EXISTS idx_ke_content_hash ON app.knowledge_embeddings(content_hash);
 CREATE INDEX IF NOT EXISTS idx_ke_embedding ON app.knowledge_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
 COMMENT ON TABLE app.knowledge_embeddings IS 'Document embeddings for RAG with group-based filtering';

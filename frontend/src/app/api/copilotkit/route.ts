@@ -5,29 +5,42 @@ import {
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
 import { NextRequest } from "next/server";
+import { auth } from "@/auth";
 
 const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
 console.log("[CopilotKit] Backend URL:", backendUrl);
 
-// Create agent at module level (required for CopilotRuntime)
-const agent = new HttpAgent({
-  url: `${backendUrl}/agui`,
-  agentId: "agent",
-});
-
-// Log when agent is created
-console.log("[CopilotKit] HttpAgent created with URL:", `${backendUrl}/agui`);
-
-// Create runtime at module level
-const runtime = new CopilotRuntime({
-  agents: {
-    agent,
-  },
-});
-
 const serviceAdapter = new ExperimentalEmptyAdapter();
 
 export const POST = async (req: NextRequest) => {
+  // Get user session for context
+  const session = await auth();
+  const user = session?.user as { id?: string; roles?: string[]; groups?: string[] } | undefined;
+
+  const userId = user?.id || "";
+  const userGroups = user?.groups || [];
+  const userRoles = user?.roles || [];
+
+  console.log("[CopilotKit] User context:", { userId, userGroups, userRoles });
+
+  // Create agent per-request with user headers
+  const agent = new HttpAgent({
+    url: `${backendUrl}/agui`,
+    agentId: "agent",
+    headers: {
+      "X-User-ID": userId,
+      "X-User-Groups": userGroups.join(","),
+      "X-User-Roles": userRoles.join(","),
+    },
+  });
+
+  // Create runtime per-request
+  const runtime = new CopilotRuntime({
+    agents: {
+      agent,
+    },
+  });
+
   // Clone request to read body for logging
   const clonedReq = req.clone();
   const body = await clonedReq.text();

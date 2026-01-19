@@ -53,12 +53,15 @@ def create_assistant_agent(
 
         instructions.extend([
             "",
-            "## Knowledge Base Instructions",
-            "You have access to a knowledge base containing company documents.",
-            "Use the search_knowledge_base tool to find relevant information when the user asks questions.",
+            "## Knowledge Base Instructions - CRITICAL",
+            "You have access to a knowledge base containing documents uploaded by users.",
+            "IMPORTANT: You MUST use the search_knowledge_base tool BEFORE answering ANY question.",
+            "NEVER answer from your general knowledge without first searching the knowledge base.",
+            "Even if you think you know the answer, ALWAYS search first - the knowledge base may have specific information.",
+            "After searching, base your response ONLY on the documents found.",
             "ALWAYS cite your sources by mentioning the document name in your response.",
             "Format citations like this: 'According to [Document Name], ...' or 'Source: [Document Name]'",
-            "If the knowledge base doesn't contain relevant information, say so clearly.",
+            "If the knowledge base doesn't contain relevant information, say: 'I searched the knowledge base but found no relevant information.'",
             "Do not make up information that is not in the knowledge base.",
         ])
 
