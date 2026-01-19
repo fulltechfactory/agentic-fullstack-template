@@ -64,21 +64,21 @@ def search_knowledge_base(query: str) -> str:
     """
     Search the knowledge base for information relevant to the query.
     Use this tool when the user asks about company documents, policies, or information.
-    
+
     Args:
         query: The search query describing what information to find
-        
+
     Returns:
         Relevant documents from the knowledge base with source citations
     """
     user_id = current_user_id.get()
     user_groups = current_user_groups.get()
-    
+
     if not user_id:
         return "User context not available. Cannot search knowledge base."
-    
+
     accessible_kb_ids = get_accessible_kb_ids(user_id, user_groups)
-    
+
     if not accessible_kb_ids:
         return "You don't have access to any knowledge base."
     
@@ -95,15 +95,15 @@ def search_knowledge_base(query: str) -> str:
         # Filter by accessible KBs
         engine = create_engine(settings.DATABASE_URL)
         filtered_results = []
-        
+
         with engine.connect() as conn:
             placeholders = ",".join([f":kb{i}" for i in range(len(accessible_kb_ids))])
             kb_params = {f"kb{i}": kb_id for i, kb_id in enumerate(accessible_kb_ids)}
-            
+
             for doc in all_results:
                 if len(filtered_results) >= 5:
                     break
-                    
+
                 # Check if document belongs to accessible KB
                 result = conn.execute(
                     text(f"""
@@ -111,13 +111,13 @@ def search_knowledge_base(query: str) -> str:
                         FROM {settings.DB_APP_SCHEMA}.knowledge_embeddings ke
                         JOIN {settings.DB_APP_SCHEMA}.knowledge_bases kb
                             ON ke.knowledge_base_id = kb.id
-                        WHERE ke.content = :content 
+                        WHERE ke.content = :content
                           AND ke.knowledge_base_id IN ({placeholders})
                         LIMIT 1
                     """),
                     {"content": doc.content, **kb_params}
                 ).fetchone()
-                
+
                 if result:
                     filtered_results.append({
                         "content": doc.content,
