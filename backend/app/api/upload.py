@@ -13,8 +13,8 @@ from app.utils.chunking import chunk_text, ChunkingConfig
 
 router = APIRouter(prefix="/api/kb", tags=["upload"])
 
-# Max file size: 10MB
-MAX_FILE_SIZE = 10 * 1024 * 1024
+# Max file size: 200MB
+MAX_FILE_SIZE = 200 * 1024 * 1024
 
 # Threshold for chunking (files larger than this will be chunked)
 CHUNK_THRESHOLD = 2000  # Characters
