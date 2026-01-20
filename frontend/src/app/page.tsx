@@ -8,10 +8,17 @@ import { Separator } from "@/components/ui/separator";
 import { CopilotKit } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
 import { useConversations } from "@/contexts/conversations-context";
-import { MessageSquarePlus, Send, Square } from "lucide-react";
+import { MessageSquarePlus, Send, Square, User, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import "@copilotkit/react-ui/styles.css";
+
+interface HistoryMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at?: number;
+}
 
 // Custom Input component that intercepts messages for title generation
 function CustomInput({
@@ -71,10 +78,62 @@ function CustomInput({
   );
 }
 
-// Inner component that handles title generation on first message
+// Component to display a single history message
+function HistoryMessageBubble({ message }: { message: HistoryMessage }) {
+  const isUser = message.role === "user";
+
+  return (
+    <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
+      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+        isUser ? "bg-primary text-primary-foreground" : "bg-muted"
+      }`}>
+        {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+      </div>
+      <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
+        isUser ? "bg-primary text-primary-foreground" : "bg-muted"
+      }`}>
+        <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+      </div>
+    </div>
+  );
+}
+
+// Inner component that handles history display and title generation
 function ChatInner({ conversationId, title }: { conversationId: string; title: string }) {
   const { generateTitle } = useConversations();
   const titleGeneratedRef = useRef(false);
+  const [history, setHistory] = useState<HistoryMessage[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Fetch history when conversation changes
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const res = await fetch(`/api/conversations/${conversationId}/history`);
+        if (res.ok) {
+          const data = await res.json();
+          setHistory(data.messages || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch history:", error);
+      } finally {
+        setHistoryLoaded(true);
+      }
+    };
+
+    setHistory([]);
+    setHistoryLoaded(false);
+    titleGeneratedRef.current = false;
+    fetchHistory();
+  }, [conversationId]);
+
+  // Scroll to bottom when history loads
+  useEffect(() => {
+    if (historyLoaded && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "instant" });
+    }
+  }, [historyLoaded, history]);
 
   const handleMessageIntercepted = useCallback((message: string) => {
     // Generate title on first message if still default
@@ -92,6 +151,40 @@ function ChatInner({ conversationId, title }: { conversationId: string; title: s
     [handleMessageIntercepted]
   );
 
+  // Show loading state while fetching history
+  if (!historyLoaded) {
+    return (
+      <div className="flex items-center justify-center h-full text-muted-foreground">
+        Loading conversation...
+      </div>
+    );
+  }
+
+  // If there's history, show it above the CopilotChat
+  if (history.length > 0) {
+    return (
+      <div className="flex flex-col h-full">
+        {/* History messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {history.map((msg) => (
+            <HistoryMessageBubble key={msg.id} message={msg} />
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+        {/* Input area */}
+        <CopilotChat
+          className="border-t"
+          labels={{
+            title: title || "AI Assistant",
+            initial: "",
+          }}
+          Input={InputWithInterceptor}
+        />
+      </div>
+    );
+  }
+
+  // No history - show normal CopilotChat
   return (
     <CopilotChat
       className="h-full"

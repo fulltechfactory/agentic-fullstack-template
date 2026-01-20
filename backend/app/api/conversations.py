@@ -325,6 +325,64 @@ async def touch_conversation(
         return {"status": "success"}
 
 
+@router.get("/{conversation_id}/history")
+async def get_conversation_history(
+    conversation_id: str,
+    x_user_id: str = Header(..., alias="X-User-ID"),
+):
+    """
+    Get the message history for a conversation.
+    Extracts messages from Agno agent_sessions.
+    """
+    engine = create_engine(settings.DATABASE_URL)
+
+    with engine.connect() as conn:
+        # Verify conversation ownership
+        existing = conn.execute(
+            text(f"""
+                SELECT id FROM {settings.DB_APP_SCHEMA}.conversations
+                WHERE id = :id AND user_id = :user_id
+            """),
+            {"id": conversation_id, "user_id": x_user_id}
+        ).fetchone()
+
+        if not existing:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        # Get session data from Agno
+        session = conn.execute(
+            text(f"""
+                SELECT runs FROM {settings.DB_APP_SCHEMA}.agent_sessions
+                WHERE session_id = :session_id
+            """),
+            {"session_id": conversation_id}
+        ).fetchone()
+
+        if not session or not session[0]:
+            return {"status": "success", "messages": []}
+
+        # Extract messages from all runs
+        messages = []
+        runs = session[0]
+
+        for run in runs:
+            run_messages = run.get("messages", [])
+            for msg in run_messages:
+                role = msg.get("role")
+                content = msg.get("content", "")
+
+                # Only include user and assistant messages
+                if role in ("user", "assistant") and content:
+                    messages.append({
+                        "id": msg.get("id"),
+                        "role": role,
+                        "content": content,
+                        "created_at": msg.get("created_at"),
+                    })
+
+        return {"status": "success", "messages": messages}
+
+
 @router.post("/{conversation_id}/generate-title")
 async def generate_title(
     conversation_id: str,
