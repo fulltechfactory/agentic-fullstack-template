@@ -5,7 +5,7 @@ API endpoints for file upload to knowledge bases.
 import os
 import tempfile
 from fastapi import APIRouter, HTTPException, Header, UploadFile, File
-from typing import List
+from typing import List, Optional
 from sqlalchemy import create_engine, text
 from app.config.settings import settings
 from app.extractors import is_supported, extract_text, ALL_EXTENSIONS
@@ -20,32 +20,46 @@ MAX_FILE_SIZE = 200 * 1024 * 1024
 CHUNK_THRESHOLD = 2000  # Characters
 
 
-def get_user_permission_for_kb(user_id: str, user_groups: List[str], kb_group: str) -> str | None:
+def get_user_permission_for_kb(
+    user_id: str,
+    user_groups: List[str],
+    kb_group: Optional[str],
+    kb_owner_user_id: Optional[str] = None,
+) -> str | None:
     """Get user's permission level for a specific KB."""
-    if kb_group in user_groups:
+    # Personal KB: owner has WRITE
+    if kb_owner_user_id is not None:
+        if kb_owner_user_id == user_id:
+            return "WRITE"
+        else:
+            return None  # Others cannot access personal KB
+
+    # Group KB: check group membership
+    if kb_group and kb_group in user_groups:
         permission = "READ"
     else:
         permission = None
-    
-    engine = create_engine(settings.DATABASE_URL)
-    with engine.connect() as conn:
-        result = conn.execute(
-            text(f"""
-                SELECT permission 
-                FROM {settings.DB_APP_SCHEMA}.knowledge_base_permissions
-                WHERE user_id = :user_id AND group_name = :group_name
-                ORDER BY CASE permission WHEN 'WRITE' THEN 1 ELSE 2 END
-                LIMIT 1
-            """),
-            {"user_id": user_id, "group_name": kb_group}
-        ).fetchone()
-        
-        if result:
-            if result[0] == "WRITE":
-                permission = "WRITE"
-            elif permission is None:
-                permission = result[0]
-    
+
+    if kb_group:
+        engine = create_engine(settings.DATABASE_URL)
+        with engine.connect() as conn:
+            result = conn.execute(
+                text(f"""
+                    SELECT permission
+                    FROM {settings.DB_APP_SCHEMA}.knowledge_base_permissions
+                    WHERE user_id = :user_id AND group_name = :group_name
+                    ORDER BY CASE permission WHEN 'WRITE' THEN 1 ELSE 2 END
+                    LIMIT 1
+                """),
+                {"user_id": user_id, "group_name": kb_group}
+            ).fetchone()
+
+            if result:
+                if result[0] == "WRITE":
+                    permission = "WRITE"
+                elif permission is None:
+                    permission = result[0]
+
     return permission
 
 
@@ -55,21 +69,59 @@ def get_kb_by_id(kb_id: str):
     with engine.connect() as conn:
         result = conn.execute(
             text(f"""
-                SELECT id, name, slug, group_name 
-                FROM {settings.DB_APP_SCHEMA}.knowledge_bases 
+                SELECT id, name, slug, group_name, owner_user_id
+                FROM {settings.DB_APP_SCHEMA}.knowledge_bases
                 WHERE id = :id
             """),
             {"id": kb_id}
         ).fetchone()
-        
+
         if result:
             return {
                 "id": str(result[0]),
                 "name": result[1],
                 "slug": result[2],
                 "group_name": result[3],
+                "owner_user_id": result[4],
+                "is_personal": result[4] is not None,
             }
         return None
+
+
+def check_personal_kb_limits(kb_id: str, file_size: int) -> tuple[bool, str]:
+    """
+    Check if uploading to personal KB would exceed limits.
+    Returns (is_allowed, error_message).
+    """
+    engine = create_engine(settings.DATABASE_URL)
+    with engine.connect() as conn:
+        # Count existing documents
+        doc_count = conn.execute(
+            text(f"""
+                SELECT COUNT(*) FROM {settings.DB_APP_SCHEMA}.knowledge_embeddings
+                WHERE knowledge_base_id = :kb_id
+            """),
+            {"kb_id": kb_id}
+        ).scalar() or 0
+
+        if doc_count >= settings.PERSONAL_KB_MAX_DOCS:
+            return False, f"Personal KB limit reached: maximum {settings.PERSONAL_KB_MAX_DOCS} documents"
+
+        # Check total size (approximate from content length)
+        total_size = conn.execute(
+            text(f"""
+                SELECT COALESCE(SUM(LENGTH(content)), 0)
+                FROM {settings.DB_APP_SCHEMA}.knowledge_embeddings
+                WHERE knowledge_base_id = :kb_id
+            """),
+            {"kb_id": kb_id}
+        ).scalar() or 0
+
+        max_size_bytes = settings.PERSONAL_KB_MAX_SIZE_MB * 1024 * 1024
+        if total_size + file_size > max_size_bytes:
+            return False, f"Personal KB size limit reached: maximum {settings.PERSONAL_KB_MAX_SIZE_MB}MB"
+
+    return True, ""
 
 
 @router.post("/{kb_id}/upload")
@@ -101,26 +153,34 @@ async def upload_file(
     kb = get_kb_by_id(kb_id)
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
-    
+
     # Check permission
-    permission = get_user_permission_for_kb(x_user_id, user_groups, kb["group_name"])
+    permission = get_user_permission_for_kb(
+        x_user_id, user_groups, kb["group_name"], kb.get("owner_user_id")
+    )
     if permission != "WRITE":
         raise HTTPException(status_code=403, detail="WRITE permission required")
-    
+
     # Validate file
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
-    
+
     if not is_supported(file.filename):
         supported = ", ".join(sorted(ALL_EXTENSIONS))
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Unsupported file type. Supported: {supported}"
         )
-    
+
     # Read file content
     content = await file.read()
-    
+
+    # Check personal KB limits
+    if kb.get("is_personal"):
+        is_allowed, error_msg = check_personal_kb_limits(kb_id, len(content))
+        if not is_allowed:
+            raise HTTPException(status_code=400, detail=error_msg)
+
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=400, 
