@@ -13,16 +13,21 @@ CREATE TABLE IF NOT EXISTS app.knowledge_bases (
     name VARCHAR(100) NOT NULL,
     slug VARCHAR(50) UNIQUE NOT NULL,
     description TEXT,
-    group_name VARCHAR(100) NOT NULL,
+    group_name VARCHAR(100),  -- NULL for personal KBs
+    owner_user_id VARCHAR(100),  -- Set for personal KBs, NULL for group KBs
     created_by VARCHAR(100),
     created_at TIMESTAMP DEFAULT NOW(),
-    is_active BOOLEAN DEFAULT true
+    is_active BOOLEAN DEFAULT true,
+    -- Either group_name or owner_user_id must be set
+    CONSTRAINT kb_ownership CHECK (group_name IS NOT NULL OR owner_user_id IS NOT NULL)
 );
 
 CREATE INDEX IF NOT EXISTS idx_kb_group_name ON app.knowledge_bases(group_name);
+CREATE INDEX IF NOT EXISTS idx_kb_owner_user_id ON app.knowledge_bases(owner_user_id);
 
-COMMENT ON TABLE app.knowledge_bases IS 'Knowledge bases linked to Keycloak groups';
-COMMENT ON COLUMN app.knowledge_bases.group_name IS 'Keycloak group that owns this KB (e.g., /COMPANY, /RH)';
+COMMENT ON TABLE app.knowledge_bases IS 'Knowledge bases - group-based or personal';
+COMMENT ON COLUMN app.knowledge_bases.group_name IS 'Keycloak group that owns this KB (NULL for personal KBs)';
+COMMENT ON COLUMN app.knowledge_bases.owner_user_id IS 'User ID for personal KB (NULL for group KBs)';
 
 -- -----------------------------------------------------------------------------
 -- Knowledge Embeddings

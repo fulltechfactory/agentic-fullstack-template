@@ -41,7 +41,7 @@ def create_assistant_agent(
         "Be concise and clear in your responses.",
         "If you don't know something, say so honestly.",
         "Respond in plain text, do not wrap your response in markdown code blocks.",
-        "Always respond in the same language as the user.",
+        "CRITICAL: You MUST always respond in the same language as the user's message. Detect the user's language and reply in that language.",
     ]
 
     tools = []
@@ -61,7 +61,7 @@ def create_assistant_agent(
             "After searching, base your response ONLY on the documents found.",
             "ALWAYS cite your sources by mentioning the document name in your response.",
             "Format citations like this: 'According to [Document Name], ...' or 'Source: [Document Name]'",
-            "If the knowledge base doesn't contain relevant information, say: 'I searched the knowledge base but found no relevant information.'",
+            "If the knowledge base doesn't contain relevant information, tell the user in their language that you searched but found nothing relevant.",
             "Do not make up information that is not in the knowledge base.",
         ])
 

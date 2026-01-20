@@ -21,16 +21,28 @@ def set_user_context(user_id: str, user_groups: List[str]):
 def get_accessible_kb_ids(user_id: str, user_groups: List[str]) -> List[str]:
     """
     Get list of KB IDs the user can access.
+    Includes: personal KB + group KBs + KBs with explicit permissions.
     """
     accessible_kb_ids = []
-    
+
     engine = create_engine(settings.DATABASE_URL)
     with engine.connect() as conn:
+        # Get user's personal KB
+        result = conn.execute(
+            text(f"""
+                SELECT id FROM {settings.DB_APP_SCHEMA}.knowledge_bases
+                WHERE owner_user_id = :user_id AND is_active = true
+            """),
+            {"user_id": user_id}
+        )
+        for row in result:
+            accessible_kb_ids.append(str(row[0]))
+
         # Get KBs for user's groups
         if user_groups:
             placeholders = ",".join([f":g{i}" for i in range(len(user_groups))])
             params = {f"g{i}": g for i, g in enumerate(user_groups)}
-            
+
             result = conn.execute(
                 text(f"""
                     SELECT id FROM {settings.DB_APP_SCHEMA}.knowledge_bases
@@ -39,12 +51,14 @@ def get_accessible_kb_ids(user_id: str, user_groups: List[str]) -> List[str]:
                 params
             )
             for row in result:
-                accessible_kb_ids.append(str(row[0]))
-        
+                kb_id = str(row[0])
+                if kb_id not in accessible_kb_ids:
+                    accessible_kb_ids.append(kb_id)
+
         # Get KBs from explicit permissions
         result = conn.execute(
             text(f"""
-                SELECT DISTINCT kb.id 
+                SELECT DISTINCT kb.id
                 FROM {settings.DB_APP_SCHEMA}.knowledge_bases kb
                 JOIN {settings.DB_APP_SCHEMA}.knowledge_base_permissions p
                     ON kb.group_name = p.group_name
@@ -56,7 +70,7 @@ def get_accessible_kb_ids(user_id: str, user_groups: List[str]) -> List[str]:
             kb_id = str(row[0])
             if kb_id not in accessible_kb_ids:
                 accessible_kb_ids.append(kb_id)
-    
+
     return accessible_kb_ids
 
 

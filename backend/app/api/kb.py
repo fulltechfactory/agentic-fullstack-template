@@ -1,5 +1,6 @@
 """
 API endpoints for Knowledge Bases management.
+Supports both group-based KBs and personal KBs.
 """
 
 from fastapi import APIRouter, HTTPException, Header
@@ -26,12 +27,94 @@ class KnowledgeBaseResponse(BaseModel):
     name: str
     slug: str
     description: Optional[str]
-    group_name: str
+    group_name: Optional[str]
+    owner_user_id: Optional[str] = None
+    is_personal: bool = False
     created_by: Optional[str]
     created_at: Optional[str]
     is_active: bool
     document_count: int = 0
     permission: str = "READ"  # User's permission level
+
+
+def get_or_create_personal_kb(user_id: str) -> dict:
+    """
+    Get or create a personal knowledge base for a user.
+    Returns the KB info dict.
+    """
+    engine = create_engine(settings.DATABASE_URL)
+
+    with engine.connect() as conn:
+        # Check if personal KB exists
+        result = conn.execute(
+            text(f"""
+                SELECT id, name, slug, description, created_at, is_active
+                FROM {settings.DB_APP_SCHEMA}.knowledge_bases
+                WHERE owner_user_id = :user_id
+            """),
+            {"user_id": user_id}
+        ).fetchone()
+
+        if result:
+            # Get document count
+            doc_count = conn.execute(
+                text(f"""
+                    SELECT COUNT(*) FROM {settings.DB_APP_SCHEMA}.knowledge_embeddings
+                    WHERE knowledge_base_id = :kb_id
+                """),
+                {"kb_id": str(result[0])}
+            ).scalar() or 0
+
+            return {
+                "id": str(result[0]),
+                "name": result[1],
+                "slug": result[2],
+                "description": result[3],
+                "group_name": None,
+                "owner_user_id": user_id,
+                "is_personal": True,
+                "created_by": user_id,
+                "created_at": str(result[4]) if result[4] else None,
+                "is_active": result[5],
+                "document_count": doc_count,
+                "permission": "WRITE",
+            }
+
+        # Create personal KB
+        kb_id = str(uuid.uuid4())
+        slug = f"personal-{user_id[:8]}"
+
+        conn.execute(
+            text(f"""
+                INSERT INTO {settings.DB_APP_SCHEMA}.knowledge_bases
+                (id, name, slug, description, owner_user_id, created_by)
+                VALUES (:id, :name, :slug, :description, :owner_user_id, :created_by)
+            """),
+            {
+                "id": kb_id,
+                "name": "My Personal KB",
+                "slug": slug,
+                "description": "Personal knowledge base",
+                "owner_user_id": user_id,
+                "created_by": user_id,
+            }
+        )
+        conn.commit()
+
+        return {
+            "id": kb_id,
+            "name": "My Personal KB",
+            "slug": slug,
+            "description": "Personal knowledge base",
+            "group_name": None,
+            "owner_user_id": user_id,
+            "is_personal": True,
+            "created_by": user_id,
+            "created_at": None,
+            "is_active": True,
+            "document_count": 0,
+            "permission": "WRITE",
+        }
 
 
 def get_user_permissions(user_id: str, user_groups: List[str]) -> dict:
@@ -71,6 +154,18 @@ def get_user_permissions(user_id: str, user_groups: List[str]) -> dict:
     return permissions
 
 
+@router.get("/personal")
+async def get_personal_knowledge_base(
+    x_user_id: str = Header(..., alias="X-User-ID"),
+):
+    """
+    Get or create the user's personal knowledge base.
+    Auto-creates a personal KB if it doesn't exist.
+    """
+    personal_kb = get_or_create_personal_kb(x_user_id)
+    return {"status": "success", "knowledge_base": personal_kb}
+
+
 @router.get("")
 async def list_knowledge_bases(
     x_user_id: str = Header(..., alias="X-User-ID"),
@@ -79,29 +174,29 @@ async def list_knowledge_bases(
 ):
     """
     List knowledge bases accessible to the user.
-    
-    - Regular users: see KBs for their groups + explicit permissions
+
+    - Regular users: see personal KB + KBs for their groups + explicit permissions
     - Admin users: see all KBs (for management) but no data access
     """
     user_groups = [g.strip() for g in x_user_groups.split(",") if g.strip()]
     user_roles = [r.strip() for r in x_user_roles.split(",") if r.strip()]
     is_admin = "ADMIN" in user_roles
-    
+
     engine = create_engine(settings.DATABASE_URL)
-    
+
     with engine.connect() as conn:
         if is_admin:
             # Admin sees all KBs (for management purposes)
             result = conn.execute(
                 text(f"""
-                    SELECT kb.id, kb.name, kb.slug, kb.description, kb.group_name, 
-                           kb.created_by, kb.created_at, kb.is_active,
+                    SELECT kb.id, kb.name, kb.slug, kb.description, kb.group_name,
+                           kb.owner_user_id, kb.created_by, kb.created_at, kb.is_active,
                            COUNT(ke.id) as doc_count
                     FROM {settings.DB_APP_SCHEMA}.knowledge_bases kb
-                    LEFT JOIN {settings.DB_APP_SCHEMA}.knowledge_embeddings ke 
+                    LEFT JOIN {settings.DB_APP_SCHEMA}.knowledge_embeddings ke
                         ON ke.knowledge_base_id = kb.id
                     GROUP BY kb.id
-                    ORDER BY kb.name
+                    ORDER BY kb.owner_user_id NULLS LAST, kb.name
                 """)
             )
             kbs = []
@@ -112,57 +207,63 @@ async def list_knowledge_bases(
                     "slug": row[2],
                     "description": row[3],
                     "group_name": row[4],
+                    "owner_user_id": row[5],
+                    "is_personal": row[5] is not None,
+                    "created_by": row[6],
+                    "created_at": str(row[7]) if row[7] else None,
+                    "is_active": row[8],
+                    "document_count": row[9],
+                    "permission": "ADMIN",  # Admin can manage but not access data
+                })
+            return {"status": "success", "knowledge_bases": kbs}
+
+        # Regular user: start with personal KB
+        kbs = []
+        personal_kb = get_or_create_personal_kb(x_user_id)
+        kbs.append(personal_kb)
+
+        # Get permissions for group KBs
+        permissions = get_user_permissions(x_user_id, user_groups)
+
+        if permissions:
+            # Get KBs for groups user has access to
+            group_list = list(permissions.keys())
+            placeholders = ",".join([f":g{i}" for i in range(len(group_list))])
+            params = {f"g{i}": g for i, g in enumerate(group_list)}
+
+            result = conn.execute(
+                text(f"""
+                    SELECT kb.id, kb.name, kb.slug, kb.description, kb.group_name,
+                           kb.created_by, kb.created_at, kb.is_active,
+                           COUNT(ke.id) as doc_count
+                    FROM {settings.DB_APP_SCHEMA}.knowledge_bases kb
+                    LEFT JOIN {settings.DB_APP_SCHEMA}.knowledge_embeddings ke
+                        ON ke.knowledge_base_id = kb.id
+                    WHERE kb.group_name IN ({placeholders})
+                      AND kb.is_active = true
+                    GROUP BY kb.id
+                    ORDER BY kb.name
+                """),
+                params
+            )
+
+            for row in result:
+                group_name = row[4]
+                kbs.append({
+                    "id": str(row[0]),
+                    "name": row[1],
+                    "slug": row[2],
+                    "description": row[3],
+                    "group_name": group_name,
+                    "owner_user_id": None,
+                    "is_personal": False,
                     "created_by": row[5],
                     "created_at": str(row[6]) if row[6] else None,
                     "is_active": row[7],
                     "document_count": row[8],
-                    "permission": "ADMIN",  # Admin can manage but not access data
+                    "permission": permissions.get(group_name, "READ"),
                 })
-            return {"status": "success", "knowledge_bases": kbs}
-        
-        # Regular user: get permissions
-        permissions = get_user_permissions(x_user_id, user_groups)
-        
-        if not permissions:
-            return {"status": "success", "knowledge_bases": []}
-        
-        # Get KBs for groups user has access to
-        group_list = list(permissions.keys())
-        placeholders = ",".join([f":g{i}" for i in range(len(group_list))])
-        params = {f"g{i}": g for i, g in enumerate(group_list)}
-        
-        result = conn.execute(
-            text(f"""
-                SELECT kb.id, kb.name, kb.slug, kb.description, kb.group_name, 
-                       kb.created_by, kb.created_at, kb.is_active,
-                       COUNT(ke.id) as doc_count
-                FROM {settings.DB_APP_SCHEMA}.knowledge_bases kb
-                LEFT JOIN {settings.DB_APP_SCHEMA}.knowledge_embeddings ke 
-                    ON ke.knowledge_base_id = kb.id
-                WHERE kb.group_name IN ({placeholders})
-                  AND kb.is_active = true
-                GROUP BY kb.id
-                ORDER BY kb.name
-            """),
-            params
-        )
-        
-        kbs = []
-        for row in result:
-            group_name = row[4]
-            kbs.append({
-                "id": str(row[0]),
-                "name": row[1],
-                "slug": row[2],
-                "description": row[3],
-                "group_name": group_name,
-                "created_by": row[5],
-                "created_at": str(row[6]) if row[6] else None,
-                "is_active": row[7],
-                "document_count": row[8],
-                "permission": permissions.get(group_name, "READ"),
-            })
-        
+
         return {"status": "success", "knowledge_bases": kbs}
 
 

@@ -21,14 +21,20 @@ import {
   File,
   FileCode,
   X,
+  User,
+  CheckSquare,
+  Square,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface KnowledgeBase {
   id: string;
   name: string;
   slug: string;
   description: string;
-  group_name: string;
+  group_name: string | null;
+  owner_user_id: string | null;
+  is_personal: boolean;
   document_count: number;
   permission: string;
 }
@@ -70,6 +76,10 @@ export default function KnowledgePage() {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Batch selection
+  const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   const fetchKbs = async () => {
     setLoading(true);
@@ -115,6 +125,7 @@ export default function KnowledgePage() {
     setShowAddForm(false);
     setShowUploadForm(false);
     setSelectedFile(null);
+    setSelectedDocs(new Set());
     await fetchDocuments(kb.id);
   };
 
@@ -181,12 +192,12 @@ export default function KnowledgePage() {
   const deleteDocument = async (docId: string) => {
     if (!selectedKb) return;
     if (!confirm("Delete this document?")) return;
-    
+
     try {
       const res = await fetch(`/api/kb/${selectedKb.id}/documents/${docId}`, {
         method: "DELETE",
       });
-      
+
       if (res.ok) {
         await fetchDocuments(selectedKb.id);
         await fetchKbs();
@@ -196,6 +207,51 @@ export default function KnowledgePage() {
       }
     } catch (e) {
       alert("Network error");
+    }
+  };
+
+  const toggleDocSelection = (docId: string) => {
+    const newSelected = new Set(selectedDocs);
+    if (newSelected.has(docId)) {
+      newSelected.delete(docId);
+    } else {
+      newSelected.add(docId);
+    }
+    setSelectedDocs(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedDocs.size === documents.length) {
+      setSelectedDocs(new Set());
+    } else {
+      setSelectedDocs(new Set(documents.map(d => d.id)));
+    }
+  };
+
+  const deleteSelectedDocuments = async () => {
+    if (!selectedKb || selectedDocs.size === 0) return;
+    if (!confirm(`Delete ${selectedDocs.size} selected document(s)?`)) return;
+
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/kb/${selectedKb.id}/documents`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ document_ids: Array.from(selectedDocs) }),
+      });
+
+      if (res.ok) {
+        setSelectedDocs(new Set());
+        await fetchDocuments(selectedKb.id);
+        await fetchKbs();
+      } else {
+        const err = await res.json();
+        alert(err.detail || "Failed to delete documents");
+      }
+    } catch (e) {
+      alert("Network error");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -309,27 +365,40 @@ export default function KnowledgePage() {
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-medium">{kb.name}</span>
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded ${
-                              kb.permission === "WRITE"
-                                ? "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                : "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                            }`}
-                          >
-                            {kb.permission === "WRITE" ? (
-                              <span className="flex items-center gap-1">
-                                <Edit className="h-3 w-3" /> Write
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1">
-                                <Eye className="h-3 w-3" /> Read
+                          <div className="flex items-center gap-2">
+                            {kb.is_personal && (
+                              <User className="h-4 w-4 text-purple-500" />
+                            )}
+                            <span className="font-medium">{kb.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {kb.is_personal && (
+                              <span className="text-xs px-2 py-0.5 rounded bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                Personal
                               </span>
                             )}
-                          </span>
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded ${
+                                kb.permission === "WRITE"
+                                  ? "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                  : "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                              }`}
+                            >
+                              {kb.permission === "WRITE" ? (
+                                <span className="flex items-center gap-1">
+                                  <Edit className="h-3 w-3" /> Write
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1">
+                                  <Eye className="h-3 w-3" /> Read
+                                </span>
+                              )}
+                            </span>
+                          </div>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {kb.document_count} documents • {kb.group_name}
+                          {kb.document_count} documents
+                          {kb.group_name && ` • ${kb.group_name}`}
                         </p>
                       </div>
                     ))}
@@ -490,9 +559,47 @@ export default function KnowledgePage() {
                       <p className="text-sm text-muted-foreground">No documents in this knowledge base.</p>
                     ) : (
                       <div className="space-y-3">
+                        {/* Batch actions header */}
+                        {selectedKb.permission === "WRITE" && (
+                          <div className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id="select-all"
+                                checked={selectedDocs.size === documents.length && documents.length > 0}
+                                onCheckedChange={toggleSelectAll}
+                              />
+                              <label htmlFor="select-all" className="text-sm cursor-pointer">
+                                Select all ({documents.length})
+                              </label>
+                            </div>
+                            {selectedDocs.size > 0 && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={deleteSelectedDocuments}
+                                disabled={deleting}
+                              >
+                                {deleting ? (
+                                  <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                )}
+                                Delete {selectedDocs.size} selected
+                              </Button>
+                            )}
+                          </div>
+                        )}
+
                         {documents.map((doc) => (
                           <div key={doc.id} className="p-4 border rounded-lg bg-card">
-                            <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-3">
+                              {selectedKb.permission === "WRITE" && (
+                                <Checkbox
+                                  checked={selectedDocs.has(doc.id)}
+                                  onCheckedChange={() => toggleDocSelection(doc.id)}
+                                  className="mt-1"
+                                />
+                              )}
                               <div className="flex-1">
                                 <div className="flex items-center gap-2">
                                   {getFileIcon(doc.name || "text.txt")}
