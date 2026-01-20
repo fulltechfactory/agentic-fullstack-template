@@ -5,9 +5,15 @@ A fullstack template for building AI-powered applications with CopilotKit and Ag
 ## Features
 
 - **Multi-provider AI**: OpenAI, Anthropic, Google Gemini, Mistral, Ollama, LM Studio
+- **Multi-Conversations**: Multiple chat conversations per user with auto-generated titles
 - **Session Memory**: Conversation history persisted in PostgreSQL
 - **Multi-KB RAG**: Multiple knowledge bases with group-based access control
+- **Personal Knowledge Bases**: Private KB for each user with configurable limits
+- **Web Search**: Real-time information via DuckDuckGo integration
+- **Smart PDF Processing**: Column-aware extraction for multi-column documents
+- **Large File Support**: Automatic chunking for documents up to 200MB
 - **File Upload**: Support for PDF, Word, Markdown, Text, and 20+ code file formats
+- **Batch Operations**: Delete multiple documents or conversations at once
 - **Group-based Access Control**: Keycloak groups with READ/WRITE permissions per KB
 - **Admin Dashboard**: User & group management, KB permissions, system health
 - **Modern UI**: shadcn/ui components with dark/light theme support
@@ -195,34 +201,48 @@ All group members can query the knowledge base through the chat interface.
 
 - Drag & drop upload interface
 - Automatic text extraction from PDF and Word documents
+- Column-aware PDF extraction for multi-column layouts
+- Automatic chunking for large documents
 - Language detection for code files
-- Maximum file size: 10MB
+- Maximum file size: 200MB
 - Metadata preservation (filename, type, language)
+- Batch deletion of documents
 
 ## Multi-KB Architecture
 
-The application supports multiple knowledge bases, each linked to a Keycloak group.
+The application supports multiple knowledge bases: group KBs linked to Keycloak groups, and personal KBs for individual users.
 
 ### How it works
 
+**Group Knowledge Bases:**
 1. ADMIN creates a group → Knowledge Base is auto-created
 2. Group members automatically have READ access to their KB
 3. ADMIN grants WRITE permission to specific users
 4. Users with WRITE can upload documents (text or files)
-5. Chat searches all accessible KBs and cites sources in responses
+
+**Personal Knowledge Bases:**
+1. Auto-created when user first accesses the Knowledge Base page
+2. Only the owner can access their personal KB
+3. Configurable limits (default: 10 documents, 50MB total)
+4. Marked with "Personal" badge in the UI
+
+**Chat Integration:**
+- Chat searches all accessible KBs (group + personal) and cites sources in responses
 
 ### Knowledge Base Management
 
 **For Users (Knowledge Base page):**
 - View all accessible KBs with READ/WRITE badges
+- Personal KB shown with purple "Personal" badge
 - Upload files via drag & drop (with WRITE permission)
 - Add text documents manually
-- Delete documents (with WRITE permission)
+- Delete documents individually or in batch (with WRITE permission)
 
 **For Admins (KB Management page):**
-- View all KBs with document counts
+- View all group KBs with document counts
 - Manage permissions (grant/revoke WRITE, add cross-group READ)
 - Cannot access document content
+- Personal KBs are not visible to admins
 
 ## Administration
 
@@ -247,28 +267,68 @@ The application supports multiple knowledge bases, each linked to a Keycloak gro
 - AI provider configuration
 - Session statistics
 
+## Multi-Conversations
+
+Users can have multiple separate chat conversations, each with its own history.
+
+### Features
+
+- **Conversation List**: Sidebar displays recent conversations (10 most recent)
+- **Auto-generated Titles**: Conversation title is automatically generated from the first message using AI
+- **Full Management**: Create, rename, and delete conversations
+- **Batch Deletion**: Delete multiple conversations at once via the management page (`/conversations`)
+- **Persistent History**: Each conversation maintains its own chat history across sessions
+
+### How it works
+
+1. User creates a new conversation (or one is auto-created)
+2. Each conversation has a unique ID used as the CopilotKit `threadId`
+3. First message triggers AI-powered title generation
+4. Conversations are sorted by last activity (most recent first)
+5. Switching conversations loads the appropriate chat history
+
 ## Session Memory
 
 The agent remembers conversation history across page refreshes and server restarts.
 
 1. User authenticates via Keycloak → receives a unique `user_id`
-2. Frontend passes `user_id` as `threadId` to CopilotKit
-3. Backend (Agno) stores conversation history in PostgreSQL
+2. Each conversation has a unique `conversation_id` used as `threadId`
+3. Backend (Agno) stores conversation history in PostgreSQL (`agent_sessions` table)
 4. On each request, Agno loads the session history from the database
 
 ## RAG (Retrieval-Augmented Generation)
 
 The agent searches accessible knowledge bases to answer questions with relevant context.
 
-1. Users with WRITE permission upload documents via the Knowledge Base UI
-2. Content is chunked and embedded using OpenAI `text-embedding-3-small`
-3. Embeddings are stored in PostgreSQL with PgVector
-4. On each query, relevant documents are retrieved from accessible KBs
-5. The agent uses this context and **cites the source documents** in responses
+### How it works
+
+1. Users upload documents via the Knowledge Base UI (group KBs require WRITE permission)
+2. Content is extracted with smart processing:
+   - **PDFs**: Column-aware extraction for multi-column documents (PyMuPDF + pdfplumber fallback)
+   - **Large files**: Automatic chunking for documents up to 200MB
+3. Text is chunked and embedded using OpenAI `text-embedding-3-small`
+4. Embeddings are stored in PostgreSQL with PgVector
+5. On each query, relevant documents are retrieved from all accessible KBs (group + personal)
+6. The agent uses this context and **cites the source documents** in responses
+
+### Knowledge Base Types
+
+| Type | Access | Description |
+|------|--------|-------------|
+| **Group KB** | Group members | Shared KB for each Keycloak group |
+| **Personal KB** | Owner only | Private KB for individual users |
 
 ### Requirements
 
 RAG requires OpenAI API key for embeddings (even when using other providers for chat).
+
+## Web Search
+
+The agent can search the web for real-time information using DuckDuckGo.
+
+- Automatically triggered when knowledge base doesn't have relevant information
+- Useful for current events, recent updates, and general knowledge
+- No API key required (uses DuckDuckGo's free search)
 
 ## UI Features
 
@@ -288,8 +348,9 @@ The application supports light, dark, and system themes. Toggle via the sun/moon
 
 | Table | Purpose |
 |-------|---------|
-| `app.agent_sessions` | Session data and conversation runs |
-| `app.knowledge_bases` | KB metadata (name, slug, group) |
+| `app.conversations` | User conversations metadata (title, timestamps) |
+| `app.agent_sessions` | Session data and conversation runs (Agno) |
+| `app.knowledge_bases` | KB metadata (name, slug, group, owner) |
 | `app.knowledge_embeddings` | RAG document embeddings (PgVector) |
 | `app.knowledge_base_permissions` | WRITE and cross-group READ permissions |
 
@@ -385,6 +446,13 @@ This updates all references (containers, database, Keycloak realm, UI).
 - [x] Source citations in chat responses
 - [x] Infrastructure as Code - AWS (OpenTofu)
 - [x] Infrastructure as Code - Azure (OpenTofu)
+- [x] Web search (DuckDuckGo integration)
+- [x] Large file support (chunking up to 200MB)
+- [x] Smart PDF extraction (column-aware for multi-column docs)
+- [x] Personal Knowledge Bases (private per-user KBs)
+- [x] Batch document deletion
+- [x] Multi-conversations (multiple chats per user)
+- [x] Auto-generated conversation titles (AI-powered)
 - [ ] KB selector in chat (filter by specific KB)
 - [ ] User Memory (persistent user preferences)
 - [ ] Infrastructure as Code - GCP (OpenTofu)
