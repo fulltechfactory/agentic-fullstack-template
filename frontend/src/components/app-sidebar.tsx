@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { NavMain } from "@/components/nav-main"
+import { NavConversations } from "@/components/nav-conversations"
 import { NavUser } from "@/components/nav-user"
 import { ThemeToggle } from "@/components/theme-toggle"
 import {
@@ -26,15 +27,7 @@ import {
 // Role-based navigation configuration
 const getNavItems = (roles: string[], groups: string[]) => {
   const items = []
-  
-  // Chat - visible to all authenticated users
-  items.push({
-    title: "Chat",
-    url: "/",
-    icon: MessageSquare,
-    isActive: true,
-  })
-  
+
   // Knowledge Base - visible to users with groups (non-ADMIN only)
   if (groups.length > 0 && !roles.includes("ADMIN")) {
     items.push({
@@ -43,7 +36,7 @@ const getNavItems = (roles: string[], groups: string[]) => {
       icon: BookOpen,
     })
   }
-  
+
   // Admin section - visible to ADMIN only
   if (roles.includes("ADMIN")) {
     items.push({
@@ -62,7 +55,7 @@ const getNavItems = (roles: string[], groups: string[]) => {
       icon: Database,
     })
   }
-  
+
   return items
 }
 
@@ -105,7 +98,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItems} />
+        <NavConversations />
+        {navItems.length > 0 && <NavMain items={navItems} />}
       </SidebarContent>
       <SidebarFooter>
         <ThemeToggle />

@@ -1,8 +1,8 @@
 "use client";
 
-import { CopilotKit } from "@copilotkit/react-core";
 import { SessionProvider } from "next-auth/react";
 import { ReactNode } from "react";
+import { ConversationsProvider } from "@/contexts/conversations-context";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -11,7 +11,9 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <SessionProvider>
-      {children}
+      <ConversationsProvider>
+        {children}
+      </ConversationsProvider>
     </SessionProvider>
   );
 }

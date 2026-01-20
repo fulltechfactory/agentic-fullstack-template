@@ -161,6 +161,24 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- -----------------------------------------------------------------------------
+-- Conversations
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS app.conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(100) NOT NULL,
+    title VARCHAR(255) NOT NULL DEFAULT 'New conversation',
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON app.conversations(user_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON app.conversations(updated_at DESC);
+
+COMMENT ON TABLE app.conversations IS 'User conversations for chat history';
+COMMENT ON COLUMN app.conversations.user_id IS 'Keycloak user ID';
+COMMENT ON COLUMN app.conversations.title IS 'Conversation title (user-editable)';
+
+-- -----------------------------------------------------------------------------
 -- Initial Data: Company Knowledge Base
 -- -----------------------------------------------------------------------------
 INSERT INTO app.knowledge_bases (name, slug, description, group_name, created_by)
