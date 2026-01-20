@@ -70,5 +70,9 @@ class Settings:
     CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "200"))  # Overlap between chunks
     CHUNK_MIN_SIZE: int = int(os.getenv("CHUNK_MIN_SIZE", "100"))  # Minimum chunk size
 
+    # Personal KB Limits
+    PERSONAL_KB_MAX_DOCS: int = int(os.getenv("PERSONAL_KB_MAX_DOCS", "100"))  # Max documents per user
+    PERSONAL_KB_MAX_SIZE_MB: int = int(os.getenv("PERSONAL_KB_MAX_SIZE_MB", "100"))  # Max total size in MB
+
 
 settings = Settings()
