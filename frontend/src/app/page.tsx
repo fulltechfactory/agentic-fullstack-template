@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -8,9 +8,101 @@ import { Separator } from "@/components/ui/separator";
 import { CopilotKit } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
 import { useConversations } from "@/contexts/conversations-context";
-import { MessageSquarePlus } from "lucide-react";
+import { MessageSquarePlus, Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import "@copilotkit/react-ui/styles.css";
+
+// Custom Input component that intercepts messages for title generation
+function CustomInput({
+  inProgress,
+  onSend,
+  onStop,
+  onMessageIntercepted
+}: {
+  inProgress: boolean;
+  onSend: (text: string) => Promise<unknown>;
+  onStop?: () => void;
+  onMessageIntercepted?: (message: string) => void;
+}) {
+  const [value, setValue] = useState("");
+
+  const handleSubmit = async () => {
+    if (!value.trim() || inProgress) return;
+    const message = value.trim();
+    setValue("");
+
+    // Call our interceptor first
+    if (onMessageIntercepted) {
+      onMessageIntercepted(message);
+    }
+
+    // Then send to CopilotKit
+    await onSend(message);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  return (
+    <div className="flex gap-2 p-4 border-t">
+      <Textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Type a message..."
+        className="min-h-[44px] max-h-[200px] resize-none"
+        disabled={inProgress}
+      />
+      {inProgress ? (
+        <Button variant="outline" size="icon" onClick={onStop}>
+          <Square className="h-4 w-4" />
+        </Button>
+      ) : (
+        <Button size="icon" onClick={handleSubmit} disabled={!value.trim()}>
+          <Send className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+// Inner component that handles title generation on first message
+function ChatInner({ conversationId, title }: { conversationId: string; title: string }) {
+  const { generateTitle } = useConversations();
+  const titleGeneratedRef = useRef(false);
+
+  const handleMessageIntercepted = useCallback((message: string) => {
+    // Generate title on first message if still default
+    if (!titleGeneratedRef.current && title === "New conversation" && message) {
+      titleGeneratedRef.current = true;
+      generateTitle(conversationId, message);
+    }
+  }, [conversationId, title, generateTitle]);
+
+  // Create Input component with interceptor
+  const InputWithInterceptor = useCallback(
+    (props: { inProgress: boolean; onSend: (text: string) => Promise<unknown>; onStop?: () => void }) => (
+      <CustomInput {...props} onMessageIntercepted={handleMessageIntercepted} />
+    ),
+    [handleMessageIntercepted]
+  );
+
+  return (
+    <CopilotChat
+      className="h-full"
+      labels={{
+        title: title || "AI Assistant",
+        initial: "Hello! I can search the knowledge base to help answer your questions. How can I help you today?",
+      }}
+      Input={InputWithInterceptor}
+    />
+  );
+}
 
 function ChatContent() {
   const {
@@ -55,16 +147,14 @@ function ChatContent() {
 
   return (
     <CopilotKit
+      key={currentConversationId}
       runtimeUrl="/api/copilotkit"
       agent="agent"
       threadId={currentConversationId}
     >
-      <CopilotChat
-        className="h-full"
-        labels={{
-          title: currentConversation?.title || "AI Assistant",
-          initial: "Hello! I can search the knowledge base to help answer your questions. How can I help you today?",
-        }}
+      <ChatInner
+        conversationId={currentConversationId}
+        title={currentConversation?.title || "New conversation"}
       />
     </CopilotKit>
   );

@@ -7,7 +7,9 @@ from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy import create_engine, text
 from app.config.settings import settings
+from app.config.models import get_model
 import uuid
+import asyncio
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
@@ -34,6 +36,11 @@ class ConversationResponse(BaseModel):
 class BatchDeleteRequest(BaseModel):
     """Request to delete multiple conversations."""
     conversation_ids: List[str]
+
+
+class GenerateTitleRequest(BaseModel):
+    """Request to generate a title from a message."""
+    message: str
 
 
 @router.get("")
@@ -316,3 +323,82 @@ async def touch_conversation(
             raise HTTPException(status_code=404, detail="Conversation not found")
 
         return {"status": "success"}
+
+
+@router.post("/{conversation_id}/generate-title")
+async def generate_title(
+    conversation_id: str,
+    request: GenerateTitleRequest,
+    x_user_id: str = Header(..., alias="X-User-ID"),
+):
+    """
+    Generate a title for the conversation based on the first message.
+    Uses the AI model to create a short, relevant title.
+    """
+    engine = create_engine(settings.DATABASE_URL)
+
+    with engine.connect() as conn:
+        # Check ownership and current title
+        existing = conn.execute(
+            text(f"""
+                SELECT id, title FROM {settings.DB_APP_SCHEMA}.conversations
+                WHERE id = :id AND user_id = :user_id
+            """),
+            {"id": conversation_id, "user_id": x_user_id}
+        ).fetchone()
+
+        if not existing:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        # Only generate if title is still default
+        current_title = existing[1]
+        if current_title != "New conversation":
+            return {"status": "success", "title": current_title, "generated": False}
+
+        # Generate title using AI
+        try:
+            model = get_model()
+            prompt = f"""Generate a very short title (3-5 words maximum) for a conversation that starts with this message.
+Return ONLY the title, nothing else. No quotes, no punctuation at the end.
+
+User message: {request.message[:500]}"""
+
+            # Run sync model in thread pool
+            response = await asyncio.to_thread(
+                model.invoke,
+                prompt
+            )
+
+            # Extract the generated title
+            generated_title = response.content.strip().strip('"\'')[:100]
+
+            # Update the conversation title
+            conn.execute(
+                text(f"""
+                    UPDATE {settings.DB_APP_SCHEMA}.conversations
+                    SET title = :title, updated_at = NOW()
+                    WHERE id = :id
+                """),
+                {"id": conversation_id, "title": generated_title}
+            )
+            conn.commit()
+
+            return {"status": "success", "title": generated_title, "generated": True}
+
+        except Exception as e:
+            # If AI fails, use truncated message as fallback
+            fallback_title = request.message[:50].strip()
+            if len(request.message) > 50:
+                fallback_title += "..."
+
+            conn.execute(
+                text(f"""
+                    UPDATE {settings.DB_APP_SCHEMA}.conversations
+                    SET title = :title, updated_at = NOW()
+                    WHERE id = :id
+                """),
+                {"id": conversation_id, "title": fallback_title}
+            )
+            conn.commit()
+
+            return {"status": "success", "title": fallback_title, "generated": True, "fallback": True}

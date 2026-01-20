@@ -21,6 +21,7 @@ interface ConversationsContextType {
   deleteConversations: (ids: string[]) => Promise<void>;
   refreshConversations: () => Promise<void>;
   touchConversation: (id: string) => Promise<void>;
+  generateTitle: (id: string, message: string) => Promise<void>;
 }
 
 const ConversationsContext = createContext<ConversationsContextType | null>(null);
@@ -135,6 +136,29 @@ export function ConversationsProvider({ children }: { children: React.ReactNode 
     }
   }, []);
 
+  const generateTitle = useCallback(async (id: string, message: string) => {
+    try {
+      const res = await fetch(`/api/conversations/${id}/generate-title`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.generated) {
+          // Update local state with the new title
+          setConversations(prev =>
+            prev.map(c =>
+              c.id === id ? { ...c, title: data.title } : c
+            )
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Failed to generate title:", error);
+    }
+  }, []);
+
   useEffect(() => {
     refreshConversations();
   }, [refreshConversations]);
@@ -152,6 +176,7 @@ export function ConversationsProvider({ children }: { children: React.ReactNode 
         deleteConversations,
         refreshConversations,
         touchConversation,
+        generateTitle,
       }}
     >
       {children}
