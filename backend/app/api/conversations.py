@@ -1,0 +1,318 @@
+"""
+API endpoints for conversations management.
+"""
+
+from fastapi import APIRouter, HTTPException, Header
+from pydantic import BaseModel
+from typing import Optional, List
+from sqlalchemy import create_engine, text
+from app.config.settings import settings
+import uuid
+
+router = APIRouter(prefix="/api/conversations", tags=["conversations"])
+
+
+class ConversationCreate(BaseModel):
+    """Request to create a conversation."""
+    title: Optional[str] = None
+
+
+class ConversationUpdate(BaseModel):
+    """Request to update a conversation."""
+    title: str
+
+
+class ConversationResponse(BaseModel):
+    """Conversation response."""
+    id: str
+    user_id: str
+    title: str
+    created_at: Optional[str]
+    updated_at: Optional[str]
+
+
+class BatchDeleteRequest(BaseModel):
+    """Request to delete multiple conversations."""
+    conversation_ids: List[str]
+
+
+@router.get("")
+async def list_conversations(
+    x_user_id: str = Header(..., alias="X-User-ID"),
+):
+    """
+    List all conversations for the current user.
+    Ordered by most recently updated first.
+    """
+    engine = create_engine(settings.DATABASE_URL)
+
+    with engine.connect() as conn:
+        result = conn.execute(
+            text(f"""
+                SELECT id, user_id, title, created_at, updated_at
+                FROM {settings.DB_APP_SCHEMA}.conversations
+                WHERE user_id = :user_id
+                ORDER BY updated_at DESC
+            """),
+            {"user_id": x_user_id}
+        )
+
+        conversations = []
+        for row in result:
+            conversations.append({
+                "id": str(row[0]),
+                "user_id": row[1],
+                "title": row[2],
+                "created_at": str(row[3]) if row[3] else None,
+                "updated_at": str(row[4]) if row[4] else None,
+            })
+
+        return {"status": "success", "conversations": conversations}
+
+
+@router.post("")
+async def create_conversation(
+    request: ConversationCreate,
+    x_user_id: str = Header(..., alias="X-User-ID"),
+):
+    """
+    Create a new conversation.
+    """
+    engine = create_engine(settings.DATABASE_URL)
+    conversation_id = str(uuid.uuid4())
+    title = request.title or "New conversation"
+
+    with engine.connect() as conn:
+        conn.execute(
+            text(f"""
+                INSERT INTO {settings.DB_APP_SCHEMA}.conversations
+                (id, user_id, title)
+                VALUES (:id, :user_id, :title)
+            """),
+            {
+                "id": conversation_id,
+                "user_id": x_user_id,
+                "title": title,
+            }
+        )
+        conn.commit()
+
+        return {
+            "status": "success",
+            "conversation": {
+                "id": conversation_id,
+                "user_id": x_user_id,
+                "title": title,
+            }
+        }
+
+
+@router.get("/{conversation_id}")
+async def get_conversation(
+    conversation_id: str,
+    x_user_id: str = Header(..., alias="X-User-ID"),
+):
+    """
+    Get a specific conversation.
+    """
+    engine = create_engine(settings.DATABASE_URL)
+
+    with engine.connect() as conn:
+        result = conn.execute(
+            text(f"""
+                SELECT id, user_id, title, created_at, updated_at
+                FROM {settings.DB_APP_SCHEMA}.conversations
+                WHERE id = :id AND user_id = :user_id
+            """),
+            {"id": conversation_id, "user_id": x_user_id}
+        ).fetchone()
+
+        if not result:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        return {
+            "status": "success",
+            "conversation": {
+                "id": str(result[0]),
+                "user_id": result[1],
+                "title": result[2],
+                "created_at": str(result[3]) if result[3] else None,
+                "updated_at": str(result[4]) if result[4] else None,
+            }
+        }
+
+
+@router.put("/{conversation_id}")
+async def update_conversation(
+    conversation_id: str,
+    request: ConversationUpdate,
+    x_user_id: str = Header(..., alias="X-User-ID"),
+):
+    """
+    Update a conversation (rename).
+    """
+    engine = create_engine(settings.DATABASE_URL)
+
+    with engine.connect() as conn:
+        # Check ownership
+        existing = conn.execute(
+            text(f"""
+                SELECT id FROM {settings.DB_APP_SCHEMA}.conversations
+                WHERE id = :id AND user_id = :user_id
+            """),
+            {"id": conversation_id, "user_id": x_user_id}
+        ).fetchone()
+
+        if not existing:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        conn.execute(
+            text(f"""
+                UPDATE {settings.DB_APP_SCHEMA}.conversations
+                SET title = :title, updated_at = NOW()
+                WHERE id = :id
+            """),
+            {"id": conversation_id, "title": request.title}
+        )
+        conn.commit()
+
+        return {"status": "success", "message": "Conversation updated"}
+
+
+@router.delete("/{conversation_id}")
+async def delete_conversation(
+    conversation_id: str,
+    x_user_id: str = Header(..., alias="X-User-ID"),
+):
+    """
+    Delete a conversation and its associated Agno session.
+    """
+    engine = create_engine(settings.DATABASE_URL)
+
+    with engine.connect() as conn:
+        # Check ownership
+        existing = conn.execute(
+            text(f"""
+                SELECT id FROM {settings.DB_APP_SCHEMA}.conversations
+                WHERE id = :id AND user_id = :user_id
+            """),
+            {"id": conversation_id, "user_id": x_user_id}
+        ).fetchone()
+
+        if not existing:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        # Delete Agno session (conversation_id is used as session_id)
+        conn.execute(
+            text(f"""
+                DELETE FROM {settings.DB_APP_SCHEMA}.agent_sessions
+                WHERE session_id = :session_id
+            """),
+            {"session_id": conversation_id}
+        )
+
+        # Delete conversation
+        conn.execute(
+            text(f"""
+                DELETE FROM {settings.DB_APP_SCHEMA}.conversations
+                WHERE id = :id
+            """),
+            {"id": conversation_id}
+        )
+        conn.commit()
+
+        return {"status": "success", "message": "Conversation deleted"}
+
+
+@router.delete("")
+async def batch_delete_conversations(
+    request: BatchDeleteRequest,
+    x_user_id: str = Header(..., alias="X-User-ID"),
+):
+    """
+    Delete multiple conversations.
+    """
+    if not request.conversation_ids:
+        raise HTTPException(status_code=400, detail="No conversation IDs provided")
+
+    engine = create_engine(settings.DATABASE_URL)
+
+    with engine.connect() as conn:
+        # Build placeholders
+        placeholders = ",".join([f":id{i}" for i in range(len(request.conversation_ids))])
+        params = {f"id{i}": cid for i, cid in enumerate(request.conversation_ids)}
+        params["user_id"] = x_user_id
+
+        # Get conversations that belong to user
+        result = conn.execute(
+            text(f"""
+                SELECT id FROM {settings.DB_APP_SCHEMA}.conversations
+                WHERE id IN ({placeholders}) AND user_id = :user_id
+            """),
+            params
+        )
+        valid_ids = [str(row[0]) for row in result]
+
+        if not valid_ids:
+            raise HTTPException(status_code=404, detail="No valid conversations found")
+
+        # Delete Agno sessions
+        session_placeholders = ",".join([f":sid{i}" for i in range(len(valid_ids))])
+        session_params = {f"sid{i}": sid for i, sid in enumerate(valid_ids)}
+
+        conn.execute(
+            text(f"""
+                DELETE FROM {settings.DB_APP_SCHEMA}.agent_sessions
+                WHERE session_id IN ({session_placeholders})
+            """),
+            session_params
+        )
+
+        # Delete conversations
+        conv_placeholders = ",".join([f":cid{i}" for i in range(len(valid_ids))])
+        conv_params = {f"cid{i}": cid for i, cid in enumerate(valid_ids)}
+
+        result = conn.execute(
+            text(f"""
+                DELETE FROM {settings.DB_APP_SCHEMA}.conversations
+                WHERE id IN ({conv_placeholders})
+            """),
+            conv_params
+        )
+        conn.commit()
+
+        deleted_count = result.rowcount
+
+        return {
+            "status": "success",
+            "message": f"{deleted_count} conversation(s) deleted",
+            "deleted_count": deleted_count,
+        }
+
+
+@router.post("/{conversation_id}/touch")
+async def touch_conversation(
+    conversation_id: str,
+    x_user_id: str = Header(..., alias="X-User-ID"),
+):
+    """
+    Update the updated_at timestamp of a conversation.
+    Called when a new message is sent.
+    """
+    engine = create_engine(settings.DATABASE_URL)
+
+    with engine.connect() as conn:
+        result = conn.execute(
+            text(f"""
+                UPDATE {settings.DB_APP_SCHEMA}.conversations
+                SET updated_at = NOW()
+                WHERE id = :id AND user_id = :user_id
+            """),
+            {"id": conversation_id, "user_id": x_user_id}
+        )
+        conn.commit()
+
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        return {"status": "success"}

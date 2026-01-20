@@ -80,6 +80,7 @@ from app.api.permissions import router as permissions_router
 from app.api.users import router as users_router
 from app.api.upload import router as upload_router
 from app.api.groups import router as groups_router
+from app.api.conversations import router as conversations_router
 
 app.include_router(documents_router)
 app.include_router(admin_router)
@@ -88,6 +89,7 @@ app.include_router(permissions_router)
 app.include_router(users_router)
 app.include_router(upload_router)
 app.include_router(groups_router)
+app.include_router(conversations_router)
 
 
 @app.get("/health")
