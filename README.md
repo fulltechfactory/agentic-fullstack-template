@@ -278,6 +278,7 @@ Users can have multiple separate chat conversations, each with its own history.
 - **Full Management**: Create, rename, and delete conversations
 - **Batch Deletion**: Delete multiple conversations at once via the management page (`/conversations`)
 - **Persistent History**: Each conversation maintains its own chat history across sessions
+- **History Display**: Previous messages are loaded and displayed when switching conversations
 
 ### How it works
 
@@ -453,6 +454,7 @@ This updates all references (containers, database, Keycloak realm, UI).
 - [x] Batch document deletion
 - [x] Multi-conversations (multiple chats per user)
 - [x] Auto-generated conversation titles (AI-powered)
+- [x] Conversation history display (load previous messages)
 - [ ] KB selector in chat (filter by specific KB)
 - [ ] User Memory (persistent user preferences)
 - [ ] Infrastructure as Code - GCP (OpenTofu)
