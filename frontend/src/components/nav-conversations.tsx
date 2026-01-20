@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { MessageSquare, Plus, Trash2, Edit2, Check, X, Settings } from "lucide-react";
 import Link from "next/link";
 import { useConversations } from "@/contexts/conversations-context";
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function NavConversations() {
+  const router = useRouter();
   const {
     conversations,
     currentConversationId,
@@ -38,10 +40,12 @@ export function NavConversations() {
 
   const handleNewConversation = async () => {
     await createConversation();
+    router.push("/");
   };
 
   const handleSelectConversation = (id: string) => {
     setCurrentConversationId(id);
+    router.push("/");
   };
 
   const handleStartEdit = (id: string, currentTitle: string) => {
