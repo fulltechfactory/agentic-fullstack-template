@@ -1,12 +1,74 @@
 "use client";
 
+import { useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { CopilotKit } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
+import { useConversations } from "@/contexts/conversations-context";
+import { MessageSquarePlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import "@copilotkit/react-ui/styles.css";
+
+function ChatContent() {
+  const {
+    conversations,
+    currentConversationId,
+    loading,
+    createConversation,
+    touchConversation,
+  } = useConversations();
+
+  const currentConversation = conversations.find(c => c.id === currentConversationId);
+
+  // Touch conversation when it becomes active (for ordering)
+  useEffect(() => {
+    if (currentConversationId) {
+      touchConversation(currentConversationId);
+    }
+  }, [currentConversationId, touchConversation]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full text-muted-foreground">
+        Loading conversations...
+      </div>
+    );
+  }
+
+  if (!currentConversationId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4">
+        <MessageSquarePlus className="h-12 w-12 text-muted-foreground" />
+        <p className="text-muted-foreground text-center">
+          Select a conversation from the sidebar<br />or start a new one
+        </p>
+        <Button onClick={() => createConversation()}>
+          <MessageSquarePlus className="h-4 w-4 mr-2" />
+          New conversation
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <CopilotKit
+      runtimeUrl="/api/copilotkit"
+      agent="agent"
+      threadId={currentConversationId}
+    >
+      <CopilotChat
+        className="h-full"
+        labels={{
+          title: currentConversation?.title || "AI Assistant",
+          initial: "Hello! I can search the knowledge base to help answer your questions. How can I help you today?",
+        }}
+      />
+    </CopilotKit>
+  );
+}
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -40,9 +102,6 @@ export default function Home() {
     );
   }
 
-  // Use Keycloak user ID as thread ID for session persistence
-  const threadId = session.user?.id || "default";
-
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -54,15 +113,7 @@ export default function Home() {
         </header>
         <main className="flex-1 p-4">
           <div className="h-[calc(100vh-8rem)] rounded-lg border bg-card">
-            <CopilotKit runtimeUrl="/api/copilotkit" agent="agent" threadId={threadId}>
-              <CopilotChat
-                className="h-full"
-                labels={{
-                  title: "AI Assistant",
-                  initial: "Hello! I can search the knowledge base to help answer your questions. How can I help you today?",
-                }}
-              />
-            </CopilotKit>
+            <ChatContent />
           </div>
         </main>
       </SidebarInset>
