@@ -33,6 +33,18 @@ class Settings:
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
     MISTRAL_API_KEY: str = os.getenv("MISTRAL_API_KEY", "")
+    # Azure OpenAI (for GPT models like GPT-4o, GPT-5.2)
+    AZURE_OPENAI_API_KEY: str = os.getenv("AZURE_OPENAI_API_KEY", "")
+    AZURE_OPENAI_ENDPOINT: str = os.getenv("AZURE_OPENAI_ENDPOINT", "")  # e.g., https://<resource>.openai.azure.com
+    AZURE_OPENAI_DEPLOYMENT: str = os.getenv("AZURE_OPENAI_DEPLOYMENT", "")  # Deployment name for chat model
+    AZURE_OPENAI_EMBEDDING_API_KEY: str = os.getenv("AZURE_OPENAI_EMBEDDING_API_KEY", "")  # Separate API key for embeddings (if different resource)
+    AZURE_OPENAI_EMBEDDING_ENDPOINT: str = os.getenv("AZURE_OPENAI_EMBEDDING_ENDPOINT", "")  # Separate endpoint for embeddings (if different)
+    AZURE_OPENAI_EMBEDDING_DEPLOYMENT: str = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "")  # Deployment name for embeddings
+    AZURE_OPENAI_API_VERSION: str = os.getenv("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")
+
+    # Azure AI Foundry (for serverless models like Phi, Llama, Mistral)
+    AZURE_API_KEY: str = os.getenv("AZURE_API_KEY", "")
+    AZURE_ENDPOINT: str = os.getenv("AZURE_ENDPOINT", "")  # For Azure AI Foundry chat models
     
     # Database - Application
     DB_APP_HOST: str = os.getenv("DB_APP_HOST", "localhost")

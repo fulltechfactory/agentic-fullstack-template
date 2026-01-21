@@ -17,6 +17,8 @@ EMBEDDING_DIMENSIONS = {
     "ollama": 768,       # nomic-embed-text (default)
     "lmstudio": 768,     # nomic-embed-text (default for local)
     "anthropic": 1536,   # fallback to OpenAI
+    "azure-openai": 1536,  # Azure OpenAI embeddings
+    "azure-ai-foundry": 1536,  # Azure OpenAI embeddings (for serverless models)
 }
 
 # Default embedding models for each provider
@@ -27,6 +29,8 @@ DEFAULT_EMBEDDING_MODELS = {
     "ollama": "nomic-embed-text",
     "lmstudio": "text-embedding-nomic-embed-text-v1.5",
     "anthropic": "text-embedding-3-small",  # fallback to OpenAI
+    "azure-openai": "text-embedding-3-small",  # Azure OpenAI embeddings
+    "azure-ai-foundry": "text-embedding-3-small",  # Azure OpenAI embeddings (for serverless models)
 }
 
 
@@ -59,6 +63,12 @@ def get_embedder() -> Tuple[Optional[Embedder], str, int]:
 
         elif provider == "anthropic":
             return _create_anthropic_fallback_embedder(embedding_model)
+
+        elif provider == "azure-openai":
+            return _create_azure_openai_embedder(embedding_model)
+
+        elif provider == "azure-ai-foundry":
+            return _create_azure_ai_foundry_embedder(embedding_model)
 
         else:
             return None, f"Unknown AI provider: {provider}", 0
@@ -170,6 +180,68 @@ def _create_anthropic_fallback_embedder(model: str) -> Tuple[Embedder, str, int]
     print("[WARNING] Anthropic does not provide embeddings. Using OpenAI as fallback.")
 
     return embedder, f"OpenAI fallback ({openai_model})", EMBEDDING_DIMENSIONS["anthropic"]
+
+
+def _create_azure_openai_embedder(model: str) -> Tuple[Embedder, str, int]:
+    """
+    Create Azure OpenAI embedder.
+
+    Uses Azure OpenAI embedding models (GPT models like text-embedding-3-small).
+    Supports separate endpoint and API key for embeddings if configured.
+    """
+    # Use separate embedding API key if configured, otherwise fall back to main API key
+    embedding_api_key = settings.AZURE_OPENAI_EMBEDDING_API_KEY or settings.AZURE_OPENAI_API_KEY
+    if not embedding_api_key:
+        raise ValueError(
+            "AZURE_OPENAI_EMBEDDING_API_KEY or AZURE_OPENAI_API_KEY is required for Azure OpenAI embeddings"
+        )
+
+    # Use separate embedding endpoint if configured, otherwise fall back to main endpoint
+    embedding_endpoint = settings.AZURE_OPENAI_EMBEDDING_ENDPOINT or settings.AZURE_OPENAI_ENDPOINT
+    if not embedding_endpoint:
+        raise ValueError(
+            "AZURE_OPENAI_EMBEDDING_ENDPOINT or AZURE_OPENAI_ENDPOINT is required for Azure OpenAI embeddings"
+        )
+
+    from agno.knowledge.embedder.azure_openai import AzureOpenAIEmbedder
+
+    embedder = AzureOpenAIEmbedder(
+        id=model,
+        api_key=embedding_api_key,
+        azure_endpoint=embedding_endpoint,
+        azure_deployment=settings.AZURE_OPENAI_EMBEDDING_DEPLOYMENT or None,
+        api_version=settings.AZURE_OPENAI_API_VERSION,
+    )
+
+    deployment_info = settings.AZURE_OPENAI_EMBEDDING_DEPLOYMENT or model
+    return embedder, f"Azure OpenAI ({deployment_info})", EMBEDDING_DIMENSIONS["azure-openai"]
+
+
+def _create_azure_ai_foundry_embedder(model: str) -> Tuple[Embedder, str, int]:
+    """
+    Create Azure OpenAI embedder for Azure AI Foundry.
+
+    Uses Azure OpenAI embedding models. Requires AZURE_OPENAI_ENDPOINT for embeddings
+    (separate from AZURE_ENDPOINT used for chat models).
+    """
+    if not settings.AZURE_API_KEY:
+        raise ValueError("AZURE_API_KEY is required for Azure AI Foundry embeddings")
+    if not settings.AZURE_OPENAI_ENDPOINT:
+        raise ValueError(
+            "AZURE_OPENAI_ENDPOINT is required for Azure AI Foundry embeddings. "
+            "This is the Azure OpenAI endpoint (e.g., https://<resource>.openai.azure.com), "
+            "separate from AZURE_ENDPOINT used for chat models."
+        )
+
+    from agno.knowledge.embedder.azure_openai import AzureOpenAIEmbedder
+
+    embedder = AzureOpenAIEmbedder(
+        id=model,
+        api_key=settings.AZURE_API_KEY,
+        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+    )
+
+    return embedder, f"Azure OpenAI ({model})", EMBEDDING_DIMENSIONS["azure-ai-foundry"]
 
 
 def get_embedding_dimensions(provider: str = None) -> int:

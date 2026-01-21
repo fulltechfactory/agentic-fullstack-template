@@ -4,7 +4,7 @@ A fullstack template for building AI-powered applications with CopilotKit and Ag
 
 ## Features
 
-- **Multi-provider AI**: OpenAI, Anthropic, Google Gemini, Mistral, Ollama, LM Studio
+- **Multi-provider AI**: OpenAI, Anthropic, Google Gemini, Mistral, Azure OpenAI, Azure AI Foundry, Ollama, LM Studio
 - **Multi-Conversations**: Multiple chat conversations per user with auto-generated titles
 - **Session Memory**: Conversation history persisted in PostgreSQL
 - **Multi-KB RAG**: Multiple knowledge bases with group-based access control
@@ -412,8 +412,16 @@ The application supports light, dark, and system themes. Toggle via the sun/moon
 | Anthropic | Cloud | `AI_PROVIDER=anthropic AI_API_KEY=sk-ant-...` |
 | Google Gemini | Cloud | `AI_PROVIDER=gemini AI_API_KEY=...` |
 | Mistral | Cloud | `AI_PROVIDER=mistral AI_API_KEY=...` |
+| Azure OpenAI | Cloud | `AI_PROVIDER=azure-openai AZURE_OPENAI_API_KEY=... AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com AZURE_OPENAI_DEPLOYMENT=<deployment-name>` |
+| Azure AI Foundry | Cloud | `AI_PROVIDER=azure-ai-foundry AZURE_API_KEY=... AZURE_ENDPOINT=https://<resource>.models.ai.azure.com` |
 | Ollama | Local | `AI_PROVIDER=ollama AI_URL=http://host.docker.internal:11434` |
 | LM Studio | Local | `AI_PROVIDER=lmstudio AI_URL=http://host.docker.internal:1234` |
+
+### Azure Providers
+
+**Azure OpenAI** (`azure-openai`): Use this for GPT models (GPT-4o, GPT-5.2, etc.) deployed through Azure OpenAI Service or Azure AI Foundry with `cognitiveservices.azure.com` or `openai.azure.com` endpoints. Requires a deployment name.
+
+**Azure AI Foundry** (`azure-ai-foundry`): Use this for serverless models (Phi-4, Llama, Mistral) deployed through Azure AI Foundry with `models.ai.azure.com` endpoints.
 
 ## Keycloak Admin Console
 

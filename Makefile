@@ -9,6 +9,12 @@ AI_PROVIDER ?=
 AI_API_KEY ?=
 AI_MODEL ?=
 AI_URL ?=
+AZURE_ENDPOINT ?=
+AZURE_OPENAI_ENDPOINT ?=
+AZURE_OPENAI_API_KEY ?=
+AZURE_OPENAI_DEPLOYMENT ?=
+AZURE_OPENAI_EMBEDDING_ENDPOINT ?=
+AZURE_OPENAI_EMBEDDING_DEPLOYMENT ?=
 CLOUD_PROVIDER ?=
 
 # PostgreSQL superuser
@@ -127,8 +133,10 @@ setup-dev:
 		echo "│  4) Mistral"; \
 		echo "│  5) Ollama (local)"; \
 		echo "│  6) LM Studio (local)"; \
+		echo "│  7) Azure OpenAI (GPT models)"; \
+		echo "│  8) Azure AI Foundry (Phi, Llama, Mistral)"; \
 		echo "└──────────────────────────────────────────"; \
-		read -p "Enter choice [1-6]: " ai_choice; \
+		read -p "Enter choice [1-8]: " ai_choice; \
 		case $$ai_choice in \
 			1) ai_provider="openai"; ai_key_name="OPENAI_API_KEY";; \
 			2) ai_provider="gemini"; ai_key_name="GOOGLE_API_KEY";; \
@@ -136,11 +144,32 @@ setup-dev:
 			4) ai_provider="mistral"; ai_key_name="MISTRAL_API_KEY";; \
 			5) ai_provider="ollama"; ai_key_name="";; \
 			6) ai_provider="lmstudio"; ai_key_name="";; \
+			7) ai_provider="azure-openai"; ai_key_name="AZURE_OPENAI_API_KEY";; \
+			8) ai_provider="azure-ai-foundry"; ai_key_name="AZURE_API_KEY";; \
 			*) echo "[FAIL] Invalid choice"; exit 1;; \
 		esac; \
 		ai_api_key=""; \
 		ai_url=""; \
-		if [ -n "$$ai_key_name" ]; then \
+		azure_endpoint=""; \
+		azure_openai_endpoint=""; \
+		azure_openai_deployment=""; \
+		azure_openai_embedding_endpoint=""; \
+		azure_openai_embedding_deployment=""; \
+		if [ "$$ai_provider" = "azure-openai" ]; then \
+			echo ""; \
+			read -s -p "Enter AZURE_OPENAI_API_KEY: " ai_api_key; \
+			echo ""; \
+			read -p "Enter Azure OpenAI Endpoint (https://<resource>.openai.azure.com or https://<resource>.cognitiveservices.azure.com): " azure_openai_endpoint; \
+			read -p "Enter Chat Model Deployment name: " azure_openai_deployment; \
+			read -p "Enter Embedding Endpoint (press Enter if same as above): " azure_openai_embedding_endpoint; \
+			read -p "Enter Embedding Deployment name: " azure_openai_embedding_deployment; \
+		elif [ "$$ai_provider" = "azure-ai-foundry" ]; then \
+			echo ""; \
+			read -s -p "Enter AZURE_API_KEY: " ai_api_key; \
+			echo ""; \
+			read -p "Enter Azure AI Foundry Endpoint (https://<resource>.models.ai.azure.com): " azure_endpoint; \
+			read -p "Enter Azure OpenAI Endpoint for embeddings (https://<resource>.openai.azure.com): " azure_openai_endpoint; \
+		elif [ -n "$$ai_key_name" ]; then \
 			echo ""; \
 			read -s -p "Enter $$ai_key_name: " ai_api_key; \
 			echo ""; \
@@ -163,12 +192,19 @@ setup-dev:
 		ai_api_key="$(AI_API_KEY)"; \
 		ai_model="$(AI_MODEL)"; \
 		ai_url="$(AI_URL)"; \
+		azure_endpoint="$(AZURE_ENDPOINT)"; \
+		azure_openai_endpoint="$(AZURE_OPENAI_ENDPOINT)"; \
+		azure_openai_deployment="$(AZURE_OPENAI_DEPLOYMENT)"; \
+		azure_openai_embedding_endpoint="$(AZURE_OPENAI_EMBEDDING_ENDPOINT)"; \
+		azure_openai_embedding_deployment="$(AZURE_OPENAI_EMBEDDING_DEPLOYMENT)"; \
 		case $$ai_provider in \
 			openai) ai_key_name="OPENAI_API_KEY";; \
 			gemini) ai_key_name="GOOGLE_API_KEY";; \
 			anthropic) ai_key_name="ANTHROPIC_API_KEY";; \
 			mistral) ai_key_name="MISTRAL_API_KEY";; \
 			ollama|lmstudio) ai_key_name="";; \
+			azure-openai) ai_key_name="AZURE_OPENAI_API_KEY";; \
+			azure-ai-foundry) ai_key_name="AZURE_API_KEY";; \
 			*) echo "[FAIL] Invalid AI_PROVIDER: $$ai_provider"; exit 1;; \
 		esac; \
 		if [ -z "$$ai_key_name" ] && [ -z "$$ai_url" ]; then \
@@ -187,7 +223,21 @@ setup-dev:
 	echo "" >> $(DEV_CONFIG); \
 	echo "# AI Provider" >> $(DEV_CONFIG); \
 	echo "AI_PROVIDER=$$ai_provider" >> $(DEV_CONFIG); \
-	if [ -n "$$ai_key_name" ] && [ -n "$$ai_api_key" ]; then \
+	if [ "$$ai_provider" = "azure-openai" ]; then \
+		echo "AZURE_OPENAI_API_KEY=$$ai_api_key" >> $(DEV_CONFIG); \
+		echo "AZURE_OPENAI_ENDPOINT=$$azure_openai_endpoint" >> $(DEV_CONFIG); \
+		echo "AZURE_OPENAI_DEPLOYMENT=$$azure_openai_deployment" >> $(DEV_CONFIG); \
+		if [ -n "$$azure_openai_embedding_endpoint" ]; then \
+			echo "AZURE_OPENAI_EMBEDDING_ENDPOINT=$$azure_openai_embedding_endpoint" >> $(DEV_CONFIG); \
+		fi; \
+		if [ -n "$$azure_openai_embedding_deployment" ]; then \
+			echo "AZURE_OPENAI_EMBEDDING_DEPLOYMENT=$$azure_openai_embedding_deployment" >> $(DEV_CONFIG); \
+		fi; \
+	elif [ "$$ai_provider" = "azure-ai-foundry" ]; then \
+		echo "AZURE_API_KEY=$$ai_api_key" >> $(DEV_CONFIG); \
+		echo "AZURE_ENDPOINT=$$azure_endpoint" >> $(DEV_CONFIG); \
+		echo "AZURE_OPENAI_ENDPOINT=$$azure_openai_endpoint" >> $(DEV_CONFIG); \
+	elif [ -n "$$ai_key_name" ] && [ -n "$$ai_api_key" ]; then \
 		echo "$$ai_key_name=$$ai_api_key" >> $(DEV_CONFIG); \
 	fi; \
 	if [ -n "$$ai_url" ]; then \
@@ -265,8 +315,10 @@ setup-staging:
 			echo "│  4) Mistral"; \
 			echo "│  5) Ollama (local)"; \
 			echo "│  6) LM Studio (local)"; \
+			echo "│  7) Azure OpenAI (GPT models)"; \
+			echo "│  8) Azure AI Foundry (Phi, Llama, Mistral)"; \
 			echo "└──────────────────────────────────────────"; \
-			read -p "Enter choice [1-6]: " ai_choice; \
+			read -p "Enter choice [1-8]: " ai_choice; \
 			case $$ai_choice in \
 				1) ai_provider="openai"; ai_key_name="OPENAI_API_KEY";; \
 				2) ai_provider="gemini"; ai_key_name="GOOGLE_API_KEY";; \
@@ -274,11 +326,32 @@ setup-staging:
 				4) ai_provider="mistral"; ai_key_name="MISTRAL_API_KEY";; \
 				5) ai_provider="ollama"; ai_key_name="";; \
 				6) ai_provider="lmstudio"; ai_key_name="";; \
+				7) ai_provider="azure-openai"; ai_key_name="AZURE_OPENAI_API_KEY";; \
+				8) ai_provider="azure-ai-foundry"; ai_key_name="AZURE_API_KEY";; \
 				*) echo "[FAIL] Invalid choice"; exit 1;; \
 			esac; \
 			ai_api_key=""; \
 			ai_url=""; \
-			if [ -n "$$ai_key_name" ]; then \
+			azure_endpoint=""; \
+			azure_openai_endpoint=""; \
+			azure_openai_deployment=""; \
+			azure_openai_embedding_endpoint=""; \
+			azure_openai_embedding_deployment=""; \
+			if [ "$$ai_provider" = "azure-openai" ]; then \
+				echo ""; \
+				read -s -p "Enter AZURE_OPENAI_API_KEY: " ai_api_key; \
+				echo ""; \
+				read -p "Enter Azure OpenAI Endpoint (https://<resource>.openai.azure.com or https://<resource>.cognitiveservices.azure.com): " azure_openai_endpoint; \
+				read -p "Enter Chat Model Deployment name: " azure_openai_deployment; \
+				read -p "Enter Embedding Endpoint (press Enter if same as above): " azure_openai_embedding_endpoint; \
+				read -p "Enter Embedding Deployment name: " azure_openai_embedding_deployment; \
+			elif [ "$$ai_provider" = "azure-ai-foundry" ]; then \
+				echo ""; \
+				read -s -p "Enter AZURE_API_KEY: " ai_api_key; \
+				echo ""; \
+				read -p "Enter Azure AI Foundry Endpoint (https://<resource>.models.ai.azure.com): " azure_endpoint; \
+				read -p "Enter Azure OpenAI Endpoint for embeddings (https://<resource>.openai.azure.com): " azure_openai_endpoint; \
+			elif [ -n "$$ai_key_name" ]; then \
 				echo ""; \
 				read -s -p "Enter $$ai_key_name: " ai_api_key; \
 				echo ""; \
@@ -296,12 +369,19 @@ setup-staging:
 			ai_provider="$(AI_PROVIDER)"; \
 			ai_api_key="$(AI_API_KEY)"; \
 			ai_url="$(AI_URL)"; \
+			azure_endpoint="$(AZURE_ENDPOINT)"; \
+			azure_openai_endpoint="$(AZURE_OPENAI_ENDPOINT)"; \
+			azure_openai_deployment="$(AZURE_OPENAI_DEPLOYMENT)"; \
+			azure_openai_embedding_endpoint="$(AZURE_OPENAI_EMBEDDING_ENDPOINT)"; \
+			azure_openai_embedding_deployment="$(AZURE_OPENAI_EMBEDDING_DEPLOYMENT)"; \
 			case $$ai_provider in \
 				openai) ai_key_name="OPENAI_API_KEY";; \
 				gemini) ai_key_name="GOOGLE_API_KEY";; \
 				anthropic) ai_key_name="ANTHROPIC_API_KEY";; \
 				mistral) ai_key_name="MISTRAL_API_KEY";; \
 				ollama|lmstudio) ai_key_name="";; \
+				azure-openai) ai_key_name="AZURE_OPENAI_API_KEY";; \
+				azure-ai-foundry) ai_key_name="AZURE_API_KEY";; \
 				*) echo "[FAIL] Invalid AI_PROVIDER: $$ai_provider"; exit 1;; \
 			esac; \
 			if [ -z "$$ai_key_name" ] && [ -z "$$ai_url" ]; then \
@@ -317,12 +397,19 @@ setup-staging:
 		ai_provider="$(AI_PROVIDER)"; \
 		ai_api_key="$(AI_API_KEY)"; \
 		ai_url="$(AI_URL)"; \
+		azure_endpoint="$(AZURE_ENDPOINT)"; \
+		azure_openai_endpoint="$(AZURE_OPENAI_ENDPOINT)"; \
+		azure_openai_deployment="$(AZURE_OPENAI_DEPLOYMENT)"; \
+		azure_openai_embedding_endpoint="$(AZURE_OPENAI_EMBEDDING_ENDPOINT)"; \
+		azure_openai_embedding_deployment="$(AZURE_OPENAI_EMBEDDING_DEPLOYMENT)"; \
 		case $$ai_provider in \
 			openai) ai_key_name="OPENAI_API_KEY";; \
 			gemini) ai_key_name="GOOGLE_API_KEY";; \
 			anthropic) ai_key_name="ANTHROPIC_API_KEY";; \
 			mistral) ai_key_name="MISTRAL_API_KEY";; \
 			ollama|lmstudio) ai_key_name="";; \
+			azure-openai) ai_key_name="AZURE_OPENAI_API_KEY";; \
+			azure-ai-foundry) ai_key_name="AZURE_API_KEY";; \
 			*) echo "[FAIL] Invalid AI_PROVIDER: $$ai_provider"; exit 1;; \
 		esac; \
 		if [ -z "$$ai_key_name" ] && [ -z "$$ai_url" ]; then \
@@ -342,7 +429,21 @@ setup-staging:
 	echo "" >> $(STAGING_CONFIG); \
 	echo "# AI Provider" >> $(STAGING_CONFIG); \
 	echo "AI_PROVIDER=$$ai_provider" >> $(STAGING_CONFIG); \
-	if [ -n "$$ai_key_name" ] && [ -n "$$ai_api_key" ]; then \
+	if [ "$$ai_provider" = "azure-openai" ]; then \
+		echo "AZURE_OPENAI_API_KEY=$$ai_api_key" >> $(STAGING_CONFIG); \
+		echo "AZURE_OPENAI_ENDPOINT=$$azure_openai_endpoint" >> $(STAGING_CONFIG); \
+		echo "AZURE_OPENAI_DEPLOYMENT=$$azure_openai_deployment" >> $(STAGING_CONFIG); \
+		if [ -n "$$azure_openai_embedding_endpoint" ]; then \
+			echo "AZURE_OPENAI_EMBEDDING_ENDPOINT=$$azure_openai_embedding_endpoint" >> $(STAGING_CONFIG); \
+		fi; \
+		if [ -n "$$azure_openai_embedding_deployment" ]; then \
+			echo "AZURE_OPENAI_EMBEDDING_DEPLOYMENT=$$azure_openai_embedding_deployment" >> $(STAGING_CONFIG); \
+		fi; \
+	elif [ "$$ai_provider" = "azure-ai-foundry" ]; then \
+		echo "AZURE_API_KEY=$$ai_api_key" >> $(STAGING_CONFIG); \
+		echo "AZURE_ENDPOINT=$$azure_endpoint" >> $(STAGING_CONFIG); \
+		echo "AZURE_OPENAI_ENDPOINT=$$azure_openai_endpoint" >> $(STAGING_CONFIG); \
+	elif [ -n "$$ai_key_name" ] && [ -n "$$ai_api_key" ]; then \
 		echo "$$ai_key_name=$$ai_api_key" >> $(STAGING_CONFIG); \
 	fi; \
 	if [ -n "$$ai_url" ]; then \
@@ -523,8 +624,10 @@ setup-deploy:
 		echo "│  4) Mistral"; \
 		echo "│  5) Ollama (self-hosted)"; \
 		echo "│  6) LM Studio (self-hosted)"; \
+		echo "│  7) Azure OpenAI (GPT models)"; \
+		echo "│  8) Azure AI Foundry (Phi, Llama, Mistral)"; \
 		echo "└──────────────────────────────────────────"; \
-		read -p "Enter choice [1-6]: " ai_choice; \
+		read -p "Enter choice [1-8]: " ai_choice; \
 		case $$ai_choice in \
 			1) ai_provider="openai"; ai_key_name="OPENAI_API_KEY";; \
 			2) ai_provider="anthropic"; ai_key_name="ANTHROPIC_API_KEY";; \
@@ -532,11 +635,32 @@ setup-deploy:
 			4) ai_provider="mistral"; ai_key_name="MISTRAL_API_KEY";; \
 			5) ai_provider="ollama"; ai_key_name="";; \
 			6) ai_provider="lmstudio"; ai_key_name="";; \
+			7) ai_provider="azure-openai"; ai_key_name="AZURE_OPENAI_API_KEY";; \
+			8) ai_provider="azure-ai-foundry"; ai_key_name="AZURE_API_KEY";; \
 			*) echo "[FAIL] Invalid choice"; exit 1;; \
 		esac; \
 		ai_api_key=""; \
 		ai_url=""; \
-		if [ -n "$$ai_key_name" ]; then \
+		azure_endpoint=""; \
+		azure_openai_endpoint=""; \
+		azure_openai_deployment=""; \
+		azure_openai_embedding_endpoint=""; \
+		azure_openai_embedding_deployment=""; \
+		if [ "$$ai_provider" = "azure-openai" ]; then \
+			echo ""; \
+			read -s -p "Enter AZURE_OPENAI_API_KEY: " ai_api_key; \
+			echo ""; \
+			read -p "Enter Azure OpenAI Endpoint (https://<resource>.openai.azure.com or https://<resource>.cognitiveservices.azure.com): " azure_openai_endpoint; \
+			read -p "Enter Chat Model Deployment name: " azure_openai_deployment; \
+			read -p "Enter Embedding Endpoint (press Enter if same as above): " azure_openai_embedding_endpoint; \
+			read -p "Enter Embedding Deployment name: " azure_openai_embedding_deployment; \
+		elif [ "$$ai_provider" = "azure-ai-foundry" ]; then \
+			echo ""; \
+			read -s -p "Enter AZURE_API_KEY: " ai_api_key; \
+			echo ""; \
+			read -p "Enter Azure AI Foundry Endpoint (https://<resource>.models.ai.azure.com): " azure_endpoint; \
+			read -p "Enter Azure OpenAI Endpoint for embeddings (https://<resource>.openai.azure.com): " azure_openai_endpoint; \
+		elif [ -n "$$ai_key_name" ]; then \
 			echo ""; \
 			read -s -p "Enter $$ai_key_name: " ai_api_key; \
 			echo ""; \
@@ -548,12 +672,19 @@ setup-deploy:
 		ai_provider="$(AI_PROVIDER)"; \
 		ai_api_key="$(AI_API_KEY)"; \
 		ai_url="$(AI_URL)"; \
+		azure_endpoint="$(AZURE_ENDPOINT)"; \
+		azure_openai_endpoint="$(AZURE_OPENAI_ENDPOINT)"; \
+		azure_openai_deployment="$(AZURE_OPENAI_DEPLOYMENT)"; \
+		azure_openai_embedding_endpoint="$(AZURE_OPENAI_EMBEDDING_ENDPOINT)"; \
+		azure_openai_embedding_deployment="$(AZURE_OPENAI_EMBEDDING_DEPLOYMENT)"; \
 		case $$ai_provider in \
 			openai) ai_key_name="OPENAI_API_KEY";; \
 			anthropic) ai_key_name="ANTHROPIC_API_KEY";; \
 			gemini) ai_key_name="GOOGLE_API_KEY";; \
 			mistral) ai_key_name="MISTRAL_API_KEY";; \
 			ollama|lmstudio) ai_key_name="";; \
+			azure-openai) ai_key_name="AZURE_OPENAI_API_KEY";; \
+			azure-ai-foundry) ai_key_name="AZURE_API_KEY";; \
 			*) echo "[FAIL] Invalid AI_PROVIDER: $$ai_provider"; exit 1;; \
 		esac; \
 	fi; \
@@ -672,7 +803,21 @@ setup-deploy:
 	echo "" >> $(DEPLOY_CONFIG); \
 	echo "# AI Provider" >> $(DEPLOY_CONFIG); \
 	echo "AI_PROVIDER=$$ai_provider" >> $(DEPLOY_CONFIG); \
-	if [ -n "$$ai_key_name" ] && [ -n "$$ai_api_key" ]; then \
+	if [ "$$ai_provider" = "azure-openai" ]; then \
+		echo "AZURE_OPENAI_API_KEY=$$ai_api_key" >> $(DEPLOY_CONFIG); \
+		echo "AZURE_OPENAI_ENDPOINT=$$azure_openai_endpoint" >> $(DEPLOY_CONFIG); \
+		echo "AZURE_OPENAI_DEPLOYMENT=$$azure_openai_deployment" >> $(DEPLOY_CONFIG); \
+		if [ -n "$$azure_openai_embedding_endpoint" ]; then \
+			echo "AZURE_OPENAI_EMBEDDING_ENDPOINT=$$azure_openai_embedding_endpoint" >> $(DEPLOY_CONFIG); \
+		fi; \
+		if [ -n "$$azure_openai_embedding_deployment" ]; then \
+			echo "AZURE_OPENAI_EMBEDDING_DEPLOYMENT=$$azure_openai_embedding_deployment" >> $(DEPLOY_CONFIG); \
+		fi; \
+	elif [ "$$ai_provider" = "azure-ai-foundry" ]; then \
+		echo "AZURE_API_KEY=$$ai_api_key" >> $(DEPLOY_CONFIG); \
+		echo "AZURE_ENDPOINT=$$azure_endpoint" >> $(DEPLOY_CONFIG); \
+		echo "AZURE_OPENAI_ENDPOINT=$$azure_openai_endpoint" >> $(DEPLOY_CONFIG); \
+	elif [ -n "$$ai_key_name" ] && [ -n "$$ai_api_key" ]; then \
 		echo "$$ai_key_name=$$ai_api_key" >> $(DEPLOY_CONFIG); \
 	fi; \
 	if [ -n "$$ai_url" ]; then \

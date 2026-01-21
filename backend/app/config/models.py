@@ -50,5 +50,35 @@ def get_model():
             api_key="not-needed"
         )
 
+    elif provider == "azure-openai":
+        # Azure OpenAI for GPT models (GPT-4o, GPT-5.2, etc.)
+        from agno.models.azure import AzureOpenAI
+        if not settings.AZURE_OPENAI_ENDPOINT:
+            raise ValueError("AZURE_OPENAI_ENDPOINT is required for Azure OpenAI")
+        if not settings.AZURE_OPENAI_API_KEY:
+            raise ValueError("AZURE_OPENAI_API_KEY is required for Azure OpenAI")
+        if not settings.AZURE_OPENAI_DEPLOYMENT:
+            raise ValueError("AZURE_OPENAI_DEPLOYMENT is required for Azure OpenAI")
+        return AzureOpenAI(
+            id=model_id or "gpt-4o",
+            api_key=settings.AZURE_OPENAI_API_KEY,
+            azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+            azure_deployment=settings.AZURE_OPENAI_DEPLOYMENT,
+            api_version=settings.AZURE_OPENAI_API_VERSION,
+        )
+
+    elif provider == "azure-ai-foundry":
+        # Azure AI Foundry for serverless models (Phi, Llama, Mistral)
+        from agno.models.azure import AzureAIFoundry
+        if not settings.AZURE_ENDPOINT:
+            raise ValueError("AZURE_ENDPOINT is required for Azure AI Foundry")
+        if not settings.AZURE_API_KEY:
+            raise ValueError("AZURE_API_KEY is required for Azure AI Foundry")
+        return AzureAIFoundry(
+            id=model_id or "Phi-4",
+            api_key=settings.AZURE_API_KEY,
+            azure_endpoint=settings.AZURE_ENDPOINT,
+        )
+
     else:
         raise ValueError(f"Unknown AI provider: {provider}")
