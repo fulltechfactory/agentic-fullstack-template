@@ -15,7 +15,7 @@ availability_zone = "eu-west-3a"
 domain_name = "app.example.com"
 
 # Instance
-instance_type = "t3.medium"
+instance_type = "t3.large"
 
 # SSH Key (optional - leave null to use SSM Session Manager)
 key_name = null

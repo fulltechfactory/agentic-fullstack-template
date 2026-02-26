@@ -71,7 +71,7 @@ variable "domain_name" {
 variable "instance_type" {
   description = "EC2 instance type"
   type        = string
-  default     = "t3.medium"
+  default     = "t3.large"
 }
 
 variable "key_name" {

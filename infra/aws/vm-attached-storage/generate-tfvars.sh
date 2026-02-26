@@ -55,7 +55,7 @@ availability_zone = "${CLOUD_REGION}a"
 domain_name = "$DOMAIN_NAME"
 
 # Instance
-instance_type = "t3.medium"
+instance_type = "t3.large"
 
 # SSH (using SSM by default)
 key_name          = null
